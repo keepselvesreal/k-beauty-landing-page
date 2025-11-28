@@ -24,3 +24,12 @@ class PaymentProcessingError(BusinessException):
 class EmailSendingError(BusinessException):
     """이메일 발송 에러"""
     pass
+
+
+class OrderException(BusinessException):
+    """주문 관련 에러"""
+
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)

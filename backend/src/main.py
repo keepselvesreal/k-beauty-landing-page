@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.presentation.http.routers import shipping, customers
+from src.presentation.http.routers import shipping, customers, orders
 # from src.persistence.database import engine, Base
 
 # 테이블 생성은 Alembic 마이그레이션으로 관리
@@ -30,6 +30,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(shipping.router)
 app.include_router(customers.router)
+app.include_router(orders.router)
 
 
 @app.get("/health")
