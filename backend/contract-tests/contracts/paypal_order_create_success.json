@@ -1,0 +1,75 @@
+{
+  "provider": "PayPal",
+  "consumer": "KBeauty-Backend",
+  "interactions": [
+    {
+      "description": "PayPal Order 생성 성공 응답",
+      "request": {
+        "method": "POST",
+        "path": "/v1/payments/payment",
+        "body": {
+          "intent": "sale",
+          "payer": {
+            "payment_method": "paypal"
+          },
+          "transactions": [
+            {
+              "amount": {
+                "total": "750.00",
+                "currency": "PHP",
+                "details": {
+                  "subtotal": "650.00",
+                  "shipping": "100.00"
+                }
+              },
+              "description": "K-Beauty Test Order"
+            }
+          ],
+          "redirect_urls": {
+            "return_url": "http://localhost:3000/orders/success",
+            "cancel_url": "http://localhost:3000/orders/cancel"
+          }
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "id": "matching(regex, 'PAYID-[A-Z0-9]+', 'PAYID-TEST123')",
+          "state": "created",
+          "intent": "sale",
+          "payer": {
+            "payment_method": "paypal"
+          },
+          "transactions": [
+            {
+              "amount": {
+                "total": "750.00",
+                "currency": "PHP"
+              }
+            }
+          ],
+          "links": [
+            {
+              "rel": "approval_url",
+              "href": "matching(regex, 'https://.*paypal.*', 'https://www.sandbox.paypal.com/checkoutnow?token=TEST')"
+            },
+            {
+              "rel": "execute",
+              "href": "matching(regex, 'https://.*paypal.*', 'https://api.sandbox.paypal.com/v1/payments/payment/PAYID-TEST123/execute')"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "2.0.0"
+    },
+    "createdAt": "2025-11-28",
+    "notes": "PayPal Sandbox API와의 계약"
+  }
+}

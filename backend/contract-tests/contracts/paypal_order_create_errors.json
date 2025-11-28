@@ -1,0 +1,133 @@
+{
+  "provider": "PayPal",
+  "consumer": "KBeauty-Backend",
+  "interactions": [
+    {
+      "description": "PayPal Order 생성 실패 - 유효하지 않은 금액",
+      "request": {
+        "method": "POST",
+        "path": "/v1/payments/payment",
+        "body": {
+          "intent": "sale",
+          "payer": {
+            "payment_method": "paypal"
+          },
+          "transactions": [
+            {
+              "amount": {
+                "total": "0.00",
+                "currency": "PHP"
+              }
+            }
+          ],
+          "redirect_urls": {
+            "return_url": "http://localhost:3000/orders/success",
+            "cancel_url": "http://localhost:3000/orders/cancel"
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "name": "VALIDATION_ERROR",
+          "details": [
+            {
+              "field": "transactions[0].amount.total",
+              "issue": "AMOUNT_MUST_BE_POSITIVE"
+            }
+          ],
+          "message": "Invalid request: see details"
+        }
+      }
+    },
+    {
+      "description": "PayPal Order 생성 실패 - 유효하지 않은 통화",
+      "request": {
+        "method": "POST",
+        "path": "/v1/payments/payment",
+        "body": {
+          "intent": "sale",
+          "payer": {
+            "payment_method": "paypal"
+          },
+          "transactions": [
+            {
+              "amount": {
+                "total": "750.00",
+                "currency": "INVALID"
+              }
+            }
+          ],
+          "redirect_urls": {
+            "return_url": "http://localhost:3000/orders/success",
+            "cancel_url": "http://localhost:3000/orders/cancel"
+          }
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "name": "VALIDATION_ERROR",
+          "details": [
+            {
+              "field": "transactions[0].amount.currency",
+              "issue": "CURRENCY_NOT_SUPPORTED"
+            }
+          ],
+          "message": "Invalid request: see details"
+        }
+      }
+    },
+    {
+      "description": "PayPal Order 생성 실패 - 인증 실패",
+      "request": {
+        "method": "POST",
+        "path": "/v1/payments/payment",
+        "headers": {
+          "Authorization": "Bearer INVALID_TOKEN"
+        },
+        "body": {
+          "intent": "sale",
+          "payer": {
+            "payment_method": "paypal"
+          },
+          "transactions": [
+            {
+              "amount": {
+                "total": "750.00",
+                "currency": "PHP"
+              }
+            }
+          ],
+          "redirect_urls": {
+            "return_url": "http://localhost:3000/orders/success",
+            "cancel_url": "http://localhost:3000/orders/cancel"
+          }
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "name": "AUTHENTICATION_FAILURE",
+          "message": "Authentication failed"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "2.0.0"
+    },
+    "createdAt": "2025-11-28",
+    "notes": "PayPal 에러 응답 계약"
+  }
+}

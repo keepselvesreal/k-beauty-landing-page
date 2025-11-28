@@ -10,7 +10,8 @@ from src.persistence.repositories.product_repository import ProductRepository
 from src.persistence.repositories.customer_repository import CustomerRepository
 from src.persistence.repositories.shipping_repository import ShippingRepository
 from src.persistence.repositories.inventory_repository import InventoryRepository
-from src.utils.exceptions import OrderException
+from src.workflow.services.payment_service import PaymentService
+from src.utils.exceptions import OrderException, PaymentProcessingError
 
 
 class OrderService:
@@ -109,3 +110,57 @@ class OrderService:
             "product": product,
             "customer": customer,
         }
+
+    @staticmethod
+    def initiate_payment(
+        db: Session,
+        order_id: UUID,
+    ) -> dict:
+        """
+        주문에 대한 PayPal 결제 시작
+
+        Args:
+            db: 데이터베이스 세션
+            order_id: 주문 ID
+
+        Returns:
+            {
+                "order": Order,
+                "paypal_order_id": str,
+                "approval_url": str,
+            }
+
+        Raises:
+            OrderException: 주문 없음
+            PaymentProcessingError: PayPal 결제 실패
+        """
+        # 1. 주문 확인
+        order = OrderRepository.get_order_by_id(db, order_id)
+        if not order:
+            raise OrderException(code="ORDER_NOT_FOUND", message="주문을 찾을 수 없습니다.")
+
+        try:
+            # 2. PayPal Order 생성
+            payment_result = PaymentService.create_paypal_order(
+                amount=order.total_price,
+                currency="PHP",
+                description=f"Order {order.order_number}",
+            )
+
+            # 3. PayPal Order ID 저장
+            OrderRepository.update_order_payment_info(
+                db,
+                order_id=order_id,
+                paypal_order_id=payment_result["paypal_order_id"],
+            )
+
+            return {
+                "order": order,
+                "paypal_order_id": payment_result["paypal_order_id"],
+                "approval_url": payment_result["approval_url"],
+            }
+
+        except PaymentProcessingError as e:
+            # 결제 생성 실패 → 주문 상태를 payment_failed로 업데이트
+            OrderRepository.update_order_status(db, order_id, "payment_failed")
+            raise

@@ -18,7 +18,11 @@ class StaleObjectStateError(BusinessException):
 
 class PaymentProcessingError(BusinessException):
     """결제 처리 에러"""
-    pass
+
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)
 
 
 class EmailSendingError(BusinessException):
