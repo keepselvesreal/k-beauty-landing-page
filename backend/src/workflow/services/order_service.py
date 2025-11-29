@@ -1,17 +1,18 @@
 """주문 비즈니스 로직 서비스"""
 
-from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
+from src.persistence.repositories.customer_repository import CustomerRepository
+from src.persistence.repositories.inventory_repository import InventoryRepository
 from src.persistence.repositories.order_repository import OrderRepository
 from src.persistence.repositories.product_repository import ProductRepository
-from src.persistence.repositories.customer_repository import CustomerRepository
 from src.persistence.repositories.shipping_repository import ShippingRepository
-from src.persistence.repositories.inventory_repository import InventoryRepository
-from src.workflow.services.payment_service import PaymentService
 from src.utils.exceptions import OrderException, PaymentProcessingError
+from src.workflow.services.payment_service import PaymentService
 
 
 class OrderService:
@@ -160,7 +161,7 @@ class OrderService:
                 "approval_url": payment_result["approval_url"],
             }
 
-        except PaymentProcessingError as e:
+        except PaymentProcessingError:
             # 결제 생성 실패 → 주문 상태를 payment_failed로 업데이트
             OrderRepository.update_order_status(db, order_id, "payment_failed")
             raise

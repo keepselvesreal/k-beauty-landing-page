@@ -1,22 +1,25 @@
 """커스텀 비즈니스 예외"""
 
 
-class BusinessException(Exception):
+class BusinessError(Exception):
     """비즈니스 로직 예외 기본 클래스"""
+
     pass
 
 
-class InsufficientInventoryError(BusinessException):
+class InsufficientInventoryError(BusinessError):
     """재고 부족 에러"""
+
     pass
 
 
-class StaleObjectStateError(BusinessException):
+class StaleObjectStateError(BusinessError):
     """낙관적 락 충돌"""
+
     pass
 
 
-class PaymentProcessingError(BusinessException):
+class PaymentProcessingError(BusinessError):
     """결제 처리 에러"""
 
     def __init__(self, code: str, message: str):
@@ -25,12 +28,13 @@ class PaymentProcessingError(BusinessException):
         super().__init__(message)
 
 
-class EmailSendingError(BusinessException):
+class EmailSendingError(BusinessError):
     """이메일 발송 에러"""
+
     pass
 
 
-class OrderException(BusinessException):
+class OrderException(BusinessError):
     """주문 관련 에러"""
 
     def __init__(self, code: str, message: str):

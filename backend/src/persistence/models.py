@@ -8,12 +8,12 @@ from sqlalchemy import (
     Column,
     Date,
     DateTime,
+    ForeignKey,
+    Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
-    ForeignKey,
-    Integer,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -116,12 +116,12 @@ class Order(Base):
     order_number = Column(String(50), unique=True, nullable=False, index=True)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("customers.id"), nullable=False, index=True)
     fulfillment_partner_id = Column(UUID(as_uuid=True), ForeignKey("fulfillment_partners.id"), index=True)
-    
+
     # 가격 정보
     subtotal = Column(Numeric(10, 2), nullable=False)
     shipping_fee = Column(Numeric(10, 2), default=0)
     total_price = Column(Numeric(10, 2), nullable=False)
-    
+
     # 결제 정보
     status = Column(String(50), default="pending", nullable=False, index=True)
     paypal_order_id = Column(String(255))
@@ -129,15 +129,15 @@ class Order(Base):
     paypal_fee = Column(Numeric(10, 2))
     profit = Column(Numeric(10, 2), default=80.0)
     paid_at = Column(DateTime)
-    
+
     # 배송 정보
     shipping_status = Column(String(50), default="pending", index=True)
     shipped_at = Column(DateTime)
-    
+
     # 어필리에이트
     affiliate_code = Column(String(100))
     affiliate_commission = Column(Numeric(10, 2))
-    
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

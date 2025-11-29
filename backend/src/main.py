@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.presentation.http.routers import shipping, customers, orders
+from src.presentation.http.routers import customers, orders, shipping
+
 # from src.persistence.database import engine, Base
 
 # 테이블 생성은 Alembic 마이그레이션으로 관리

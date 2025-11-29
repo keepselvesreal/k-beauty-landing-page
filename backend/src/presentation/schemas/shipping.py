@@ -1,6 +1,7 @@
 """배송료 관련 Pydantic 스키마"""
 
 from decimal import Decimal
+
 from pydantic import BaseModel
 
 

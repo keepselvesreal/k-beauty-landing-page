@@ -1,6 +1,7 @@
 """상품 관련 데이터 접근 계층"""
 
 from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from src.persistence.models import Product
@@ -17,7 +18,7 @@ class ProductRepository:
     @staticmethod
     def get_active_products(db: Session):
         """활성 상품 조회"""
-        return db.query(Product).filter(Product.is_active == True).all()
+        return db.query(Product).filter(Product.is_active).all()
 
     @staticmethod
     def create_product(

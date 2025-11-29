@@ -1,9 +1,10 @@
 """주문 관련 Pydantic 스키마"""
 
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+from typing import Optional
 from uuid import UUID
-from typing import Optional, List
+
 from pydantic import BaseModel
 
 

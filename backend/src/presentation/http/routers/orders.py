@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from src.persistence.database import get_db
 from src.presentation.schemas.orders import OrderCreate, OrderResponse
-from src.workflow.services.order_service import OrderService
 from src.utils.exceptions import OrderException
+from src.workflow.services.order_service import OrderService
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 

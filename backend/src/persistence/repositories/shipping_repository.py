@@ -1,6 +1,7 @@
 """배송료 관련 데이터 접근 계층"""
 
 from typing import List
+
 from sqlalchemy.orm import Session
 
 from src.persistence.models import ShippingRate
