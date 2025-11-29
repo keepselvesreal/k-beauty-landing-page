@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
@@ -20,12 +20,8 @@ class OrderService:
 
     @staticmethod
     def generate_order_number() -> str:
-        """주문 번호 생성 (ORD-20251128-XXXXXX 형식)"""
-        timestamp = datetime.utcnow().strftime("%Y%m%d")
-        import random
-        import string
-        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        return f"ORD-{timestamp}-{random_suffix}"
+        """주문 번호 생성 (ORD-{UUID} 형식)"""
+        return f"ORD-{uuid4()}"
 
     @staticmethod
     def create_order(

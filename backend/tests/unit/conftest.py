@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 from src.persistence.models import (
     Product,
     FulfillmentPartner,
+    Affiliate,
+    Customer,
+    Order,
+    ShippingRate,
 )
 
 
@@ -76,3 +80,86 @@ def inactive_partner(test_db: Session):
     test_db.commit()
     test_db.refresh(partner)
     return partner
+
+
+# ============================================
+# Affiliate 관련 픽스처
+# ============================================
+@pytest.fixture
+def affiliate_active(test_db: Session):
+    """활성화된 Affiliate"""
+    affiliate = Affiliate(
+        code="aff-active-1234",
+        name="Active Affiliate Partner",
+        email="active@affiliate.example.com",
+        is_active=True,
+    )
+    test_db.add(affiliate)
+    test_db.commit()
+    test_db.refresh(affiliate)
+    return affiliate
+
+
+@pytest.fixture
+def affiliate_inactive(test_db: Session):
+    """비활성화된 Affiliate"""
+    affiliate = Affiliate(
+        code="aff-inactive-5678",
+        name="Inactive Affiliate Partner",
+        email="inactive@affiliate.example.com",
+        is_active=False,
+    )
+    test_db.add(affiliate)
+    test_db.commit()
+    test_db.refresh(affiliate)
+    return affiliate
+
+
+# ============================================
+# Order 관련 픽스처
+# ============================================
+@pytest.fixture
+def sample_customer(test_db: Session):
+    """기본 고객"""
+    customer = Customer(
+        email="customer@example.com",
+        name="Kim Taesoo",
+        phone="+63-901-234-5678",
+        address="123 Main St, Manila, NCR, Philippines",
+        region="NCR",
+    )
+    test_db.add(customer)
+    test_db.commit()
+    test_db.refresh(customer)
+    return customer
+
+
+@pytest.fixture
+def shipping_rate_ncr(test_db: Session):
+    """NCR 지역 배송료"""
+    rate = ShippingRate(
+        region="NCR",
+        fee=Decimal("100.00"),
+    )
+    test_db.add(rate)
+    test_db.commit()
+    test_db.refresh(rate)
+    return rate
+
+
+@pytest.fixture
+def order_with_customer(test_db: Session, sample_customer: Customer, sample_product: Product, shipping_rate_ncr: ShippingRate):
+    """고객 정보가 있는 주문"""
+    order = Order(
+        order_number="ORD-test-001",
+        customer_id=sample_customer.id,
+        subtotal=Decimal("50.00"),
+        shipping_fee=Decimal("100.00"),
+        total_price=Decimal("150.00"),
+        status="pending",
+        profit=Decimal("80.00"),
+    )
+    test_db.add(order)
+    test_db.commit()
+    test_db.refresh(order)
+    return order

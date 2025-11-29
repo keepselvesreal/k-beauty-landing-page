@@ -135,7 +135,7 @@ class Order(Base):
     shipped_at = Column(DateTime)
 
     # 어필리에이트
-    affiliate_code = Column(String(100))
+    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), index=True)
     affiliate_commission = Column(Numeric(10, 2))
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -144,10 +144,12 @@ class Order(Base):
     # 관계
     customer = relationship("Customer", back_populates="orders")
     fulfillment_partner = relationship("FulfillmentPartner", back_populates="orders")
+    affiliate = relationship("Affiliate")
     order_items = relationship("OrderItem", back_populates="order")
     shipment_allocations = relationship("ShipmentAllocation", back_populates="order")
     shipments = relationship("Shipment", back_populates="order")
     email_logs = relationship("EmailLog", back_populates="order")
+    affiliate_error_logs = relationship("AffiliateErrorLog", back_populates="order")
     affiliate_sales = relationship("AffiliateSale", back_populates="order")
 
 
@@ -237,12 +239,13 @@ class AffiliateSale(Base):
     __tablename__ = "affiliate_sales"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    affiliate_code = Column(String(100), nullable=False, index=True)
+    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), nullable=False, index=True)
     order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
     commission_amount = Column(Numeric(10, 2))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 관계
+    affiliate = relationship("Affiliate", back_populates="sales")
     order = relationship("Order", back_populates="affiliate_sales")
 
 
@@ -260,12 +263,51 @@ class ShippingRate(Base):
 
 
 # ============================================
-# 12. Settings (시스템 설정)
+# 12. Affiliates (어필리에이트)
+# ============================================
+class Affiliate(Base):
+    __tablename__ = "affiliates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    code = Column(String(100), unique=True, nullable=False, index=True)
+    name = Column(String(255))
+    email = Column(String(255), unique=True)
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 관계
+    sales = relationship("AffiliateSale", back_populates="affiliate")
+    error_logs = relationship("AffiliateErrorLog", back_populates="affiliate")
+
+
+# ============================================
+# 13. Affiliate Error Logs (어필리에이트 오류 기록)
+# ============================================
+class AffiliateErrorLog(Base):
+    __tablename__ = "affiliate_error_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False, index=True)
+    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), index=True)
+    affiliate_code = Column(String(100))
+    error_type = Column(String(50), nullable=False)  # "INVALID_CODE" / "INACTIVE_AFFILIATE"
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 관계
+    order = relationship("Order", back_populates="affiliate_error_logs")
+    affiliate = relationship("Affiliate", back_populates="error_logs")
+
+
+# ============================================
+# 14. Settings (시스템 설정)
 # ============================================
 class Settings(Base):
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
     profit_per_order = Column(Numeric(10, 2), default=80.0)
+    affiliate_commission_rate = Column(Numeric(5, 4), default=0.2)
     paypal_fee_rate_avg = Column(Numeric(5, 4))
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

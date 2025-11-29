@@ -34,10 +34,6 @@ class Settings(PydanticBaseSettings):
     SMTP_FROM_EMAIL: str
     SMTP_FROM_NAME: str = "K-Beauty Shop"
 
-    # Business Settings
-    PROFIT_PER_ORDER: int = 80
-    AFFILIATE_COMMISSION_RATE: float = 0.2
-
     class Config:
         env_file = ".env"
         case_sensitive = True

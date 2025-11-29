@@ -10,6 +10,8 @@ from src.persistence.models import (
     FulfillmentPartner,
     PartnerAllocatedInventory,
     ShippingRate,
+    Affiliate,
+    Settings,
 )
 
 
@@ -96,14 +98,45 @@ def sample_shipping_rates(test_db: Session):
 
 
 @pytest.fixture
+def sample_affiliate(test_db: Session):
+    """샘플 어필리에이트 (활성화)"""
+    affiliate = Affiliate(
+        code="aff-integration-test-001",
+        name="Integration Test Affiliate",
+        email="affiliate@example.com",
+        is_active=True,
+    )
+    test_db.add(affiliate)
+    test_db.commit()
+    test_db.refresh(affiliate)
+    return affiliate
+
+
+@pytest.fixture
+def sample_settings(test_db: Session):
+    """샘플 시스템 설정"""
+    settings = Settings(
+        profit_per_order=Decimal("80.00"),
+        affiliate_commission_rate=Decimal("0.2"),
+    )
+    test_db.add(settings)
+    test_db.commit()
+    test_db.refresh(settings)
+    return settings
+
+
+@pytest.fixture
 def complete_test_data(test_db: Session, sample_customer, sample_product,
-                       sample_fulfillment_partner, sample_inventory, sample_shipping_rates):
-    """완전한 테스트 데이터 (customer, product, partner, inventory, shipping rates)"""
+                       sample_fulfillment_partner, sample_inventory, sample_shipping_rates,
+                       sample_affiliate, sample_settings):
+    """완전한 테스트 데이터 (customer, product, partner, inventory, shipping rates, affiliate, settings)"""
     return {
         "customer": sample_customer,
         "product": sample_product,
         "partner": sample_fulfillment_partner,
         "inventory": sample_inventory,
         "shipping_rates": sample_shipping_rates,
+        "affiliate": sample_affiliate,
+        "settings": sample_settings,
         "db": test_db,
     }
