@@ -1,0 +1,337 @@
+{
+  "name": "Google Places API Provider Expectations",
+  "description": "Google Places API가 제공하는 기대 요청 형식 및 응답",
+  "consumer": "OrderForm Component",
+  "provider": "Google Places API (Autocomplete)",
+  "version": "1.0.0",
+  "api": {
+    "name": "Google Maps JavaScript API",
+    "url": "https://maps.googleapis.com/maps/api/js",
+    "requiredParameters": {
+      "key": {
+        "description": "Google Places API 키",
+        "type": "string",
+        "source": "VITE_GOOGLE_PLACES_API_KEY"
+      },
+      "libraries": {
+        "description": "필수 라이브러리",
+        "type": "string",
+        "value": "places"
+      }
+    }
+  },
+  "expectations": [
+    {
+      "interaction": 1,
+      "name": "window.google 객체 존재",
+      "description": "Google Maps API 로드 후 window.google이 정의되어야 함",
+      "request": {
+        "type": "Script Load",
+        "method": "Load Google Maps API via <script> tag",
+        "scriptUrl": "https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "window.google": {
+            "type": "Object",
+            "properties": {
+              "maps": {
+                "type": "Object",
+                "properties": {
+                  "places": {
+                    "type": "Object",
+                    "properties": {
+                      "Autocomplete": {
+                        "type": "Class",
+                        "description": "Google Places Autocomplete 클래스"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "interaction": 2,
+      "name": "Autocomplete 클래스 초기화",
+      "description": "Autocomplete을 생성할 때 inputElement와 options를 받아야 함",
+      "request": {
+        "type": "Constructor",
+        "method": "new google.maps.places.Autocomplete(inputElement, options)",
+        "parameters": {
+          "inputElement": {
+            "type": "HTMLInputElement",
+            "description": "주소 입력 필드"
+          },
+          "options": {
+            "type": "Object",
+            "properties": {
+              "types": {
+                "type": "Array",
+                "value": ["geocode"],
+                "description": "검색 유형 제한"
+              },
+              "componentRestrictions": {
+                "type": "Object",
+                "properties": {
+                  "country": {
+                    "type": "string",
+                    "value": "ph",
+                    "description": "필리핀 지역만 검색"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "type": "Autocomplete Instance",
+          "description": "초기화된 Autocomplete 객체 반환"
+        }
+      }
+    },
+    {
+      "interaction": 3,
+      "name": "addListener 메서드",
+      "description": "Autocomplete 인스턴스가 addListener 메서드를 제공해야 함",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.addListener(eventName, callback)",
+        "parameters": {
+          "eventName": {
+            "type": "string",
+            "value": "place_changed",
+            "description": "감지할 이벤트 이름"
+          },
+          "callback": {
+            "type": "Function",
+            "description": "이벤트 발생 시 호출될 콜백 함수"
+          }
+        }
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "type": "void",
+          "description": "이벤트 리스너 등록 완료"
+        }
+      }
+    },
+    {
+      "interaction": 4,
+      "name": "place_changed 이벤트 발생",
+      "description": "사용자가 자동완성 목록에서 장소를 선택하면 place_changed 이벤트 발생",
+      "request": {
+        "type": "User Interaction",
+        "trigger": "User selects a place from Autocomplete dropdown",
+        "example": "User clicks on 'Manila, NCR, Philippines' suggestion"
+      },
+      "response": {
+        "status": "Event Fired",
+        "body": {
+          "eventName": "place_changed",
+          "description": "등록된 콜백 함수가 호출됨"
+        }
+      }
+    },
+    {
+      "interaction": 5,
+      "name": "getPlace 메서드",
+      "description": "place_changed 이벤트 후 getPlace()가 선택된 장소 정보 반환",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.getPlace()",
+        "trigger": "Called inside place_changed event callback"
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "$ref": "#/responses/validPlaceObject"
+        }
+      }
+    },
+    {
+      "interaction": 6,
+      "name": "불완전한 place 객체",
+      "description": "getPlace()가 geometry 없이 반환될 수 있음 (사용자가 선택하지 않고 타이핑만 한 경우)",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.getPlace()",
+        "trigger": "User types address but doesn't select from dropdown"
+      },
+      "response": {
+        "status": "Incomplete",
+        "body": {
+          "type": "Place Object",
+          "properties": {
+            "formatted_address": {
+              "type": "string",
+              "example": "Manila"
+            },
+            "geometry": {
+              "type": "null",
+              "description": "사용자가 선택하지 않았으므로 null일 수 있음"
+            },
+            "place_id": {
+              "type": "string",
+              "description": "존재할 수도, 없을 수도 있음"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "responses": {
+    "validPlaceObject": {
+      "type": "Object",
+      "description": "Google Places API에서 반환하는 Place 객체",
+      "required": ["formatted_address", "geometry", "place_id"],
+      "properties": {
+        "formatted_address": {
+          "type": "string",
+          "description": "사람이 읽을 수 있는 주소 문자열",
+          "examples": [
+            "Manila, NCR, Philippines",
+            "Cebu City, Cebu, Philippines",
+            "Davao City, Davao del Sur, Philippines"
+          ]
+        },
+        "geometry": {
+          "type": "Object",
+          "description": "위치의 기하학적 정보",
+          "required": ["location"],
+          "properties": {
+            "location": {
+              "type": "Object",
+              "description": "좌표",
+              "required": ["lat", "lng"],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "description": "위도",
+                  "examples": [14.5995, 10.3157, 7.0731]
+                },
+                "lng": {
+                  "type": "number",
+                  "description": "경도",
+                  "examples": [120.9842, 123.8854, 125.6136]
+                }
+              }
+            },
+            "bounds": {
+              "type": "Object",
+              "description": "위치의 경계 (선택)",
+              "properties": {
+                "northeast": {
+                  "type": "Object",
+                  "properties": {
+                    "lat": { "type": "number" },
+                    "lng": { "type": "number" }
+                  }
+                },
+                "southwest": {
+                  "type": "Object",
+                  "properties": {
+                    "lat": { "type": "number" },
+                    "lng": { "type": "number" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "place_id": {
+          "type": "string",
+          "description": "Google Places API의 고유 ID",
+          "examples": [
+            "ChIJR0h8ZhWvEmoRmheTjarani4",
+            "ChIJyVJTKLeXczMRHHSTQLZsH0A",
+            "ChIJ5z-tVMB5cDMRMp4_hxwNzCE"
+          ]
+        },
+        "address_components": {
+          "type": "Array",
+          "description": "주소의 구성 요소 (선택)",
+          "items": {
+            "type": "Object",
+            "properties": {
+              "long_name": { "type": "string" },
+              "short_name": { "type": "string" },
+              "types": {
+                "type": "Array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "name": {
+          "type": "string",
+          "description": "장소의 이름 (선택)",
+          "examples": ["Manila", "Cebu City", "Davao City"]
+        },
+        "photos": {
+          "type": "Array",
+          "description": "장소의 사진 (선택)"
+        },
+        "opening_hours": {
+          "type": "Object",
+          "description": "영업 시간 (선택)"
+        },
+        "rating": {
+          "type": "number",
+          "description": "별점 평가 (선택)"
+        },
+        "types": {
+          "type": "Array",
+          "description": "장소의 유형 (선택)",
+          "examples": [
+            ["administrative_area_level_1", "political"],
+            ["locality", "political"]
+          ]
+        },
+        "url": {
+          "type": "string",
+          "description": "Google Maps에서의 URL (선택)"
+        },
+        "vicinity": {
+          "type": "string",
+          "description": "주변 지역 설명 (선택)"
+        }
+      }
+    }
+  },
+  "constraints": {
+    "regionalRestriction": {
+      "description": "componentRestrictions: { country: 'ph' }에 의해 필리핀만 검색 가능",
+      "philippineCoordinates": {
+        "latRange": [4.0, 21.0],
+        "lngRange": [116.0, 127.0]
+      }
+    },
+    "searchType": {
+      "description": "types: ['geocode']에 의해 주소/지역 검색만 가능",
+      "supportedTypes": [
+        "administrative_area_level_1",
+        "administrative_area_level_2",
+        "locality",
+        "postal_code"
+      ]
+    }
+  },
+  "notes": [
+    "Google Places API는 다음을 제공해야 한다:",
+    "1. window.google.maps.places.Autocomplete 클래스",
+    "2. Autocomplete 인스턴스의 addListener 메서드",
+    "3. place_changed 이벤트 지원",
+    "4. getPlace()가 필수 필드(formatted_address, geometry, place_id)를 포함한 객체 반환",
+    "5. 필리핀 지역 제약(country: 'ph') 준수",
+    "6. 주소 유형 제약(types: ['geocode']) 준수"
+  ]
+}

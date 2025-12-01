@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { PRODUCT, REGIONS } from '../constants';
+import { PRODUCT, REGIONS, API_BASE_URL } from '../constants';
 import { OrderFormState, FormErrors } from '../types';
+import {
+  GooglePlacesError,
+  CustomerError,
+  OrderError,
+  PaymentError,
+  ErrorCodes,
+  ErrorMessages,
+  parseApiError,
+} from '../utils/exceptions';
 
 // Validation 함수들
 const validatePhone = (phone: string) => {
@@ -21,7 +30,15 @@ const isFormValid = (formState: OrderFormState) => {
   );
 };
 
-const OrderForm: React.FC = () => {
+interface OrderFormProps {
+  onNavigate?: (url: string) => void;
+}
+
+const OrderForm: React.FC<OrderFormProps> = ({
+  onNavigate = (url: string) => {
+    window.location.href = url;
+  },
+}) => {
   const [quantity, setQuantity] = useState(1);
   const [formState, setFormState] = useState<OrderFormState>({
     fullName: '',
@@ -32,6 +49,8 @@ const OrderForm: React.FC = () => {
     detailedAddress: '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoadingAddressAPI, setIsLoadingAddressAPI] = useState(true);
+  const [addressError, setAddressError] = useState<string>('');
   const addressInputRef = useRef<HTMLInputElement>(null);
 
   // Google Places Autocomplete 초기화
@@ -49,28 +68,44 @@ const OrderForm: React.FC = () => {
         return;
       }
 
-      const autocomplete = new (window as any).google.maps.places.Autocomplete(
-        addressInputRef.current,
-        {
-          types: ['geocode'],
-          componentRestrictions: { country: 'ph' },
-        }
-      );
+      try {
+        const autocomplete = new (window as any).google.maps.places.Autocomplete(
+          addressInputRef.current,
+          {
+            types: ['geocode'],
+            componentRestrictions: { country: 'ph' },
+          }
+        );
 
-      // place_changed 이벤트 리스너
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry || !place.place_id) return;
+        // place_changed 이벤트 리스너
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (!place.geometry || !place.place_id) {
+            // graceful handling: 불완전한 주소는 무시하고 에러 메시지 표시
+            setAddressError(ErrorMessages.GOOGLE_PLACES_INVALID_PLACE);
+            return;
+          }
 
-        // place_id를 window 객체에 저장 (테스트에서 접근 가능)
-        (window as any).selectedPlaceId = place.place_id;
+          // 유효한 주소 선택 시 에러 메시지 제거
+          setAddressError('');
 
-        // 주소 필드 업데이트
-        setFormState((prev) => ({
-          ...prev,
-          address: place.formatted_address || '',
-        }));
-      });
+          // place_id를 window 객체에 저장 (테스트에서 접근 가능)
+          (window as any).selectedPlaceId = place.place_id;
+
+          // 주소 필드 업데이트
+          setFormState((prev) => ({
+            ...prev,
+            address: place.formatted_address || '',
+          }));
+        });
+
+        // API 로드 완료
+        setIsLoadingAddressAPI(false);
+      } catch (error) {
+        // graceful handling: API 초기화 실패 시에도 사용자가 수동으로 입력 가능
+        setAddressError(ErrorMessages.GOOGLE_PLACES_API_NOT_LOADED);
+        setIsLoadingAddressAPI(false);
+      }
     };
 
     checkGoogleMapsLoaded();
@@ -139,28 +174,126 @@ const OrderForm: React.FC = () => {
     }
 
     try {
-      const orderData = createOrderPayload();
+      // ============================================
+      // 1단계: 고객 생성 (또는 기존 고객 조회)
+      // ============================================
+      // eslint-disable-next-line no-console
+      console.log('1단계: 고객 생성 중...');
 
-      const response = await fetch('/api/orders/create', {
+      const customerResponse = await fetch(`${API_BASE_URL}/api/customers`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData),
+        body: JSON.stringify({
+          email: formState.email,
+          name: formState.fullName,
+          phone: formState.phone,
+          address: formState.address,
+          region: formState.region,
+        }),
       });
 
-      if (!response.ok) {
-        throw new Error(`API 호출 실패: ${response.statusText}`);
+      if (!customerResponse.ok) {
+        const appError = parseApiError(customerResponse, ErrorCodes.CUSTOMER_CREATION_FAILED);
+        setErrors((prev) => ({
+          ...prev,
+          general: ErrorMessages.CUSTOMER_CREATION_FAILED,
+        }));
+        // eslint-disable-next-line no-console
+        console.error('고객 생성 실패:', appError);
+        return;
       }
 
-      const result = await response.json();
+      const customer = await customerResponse.json();
       // eslint-disable-next-line no-console
-      console.log('주문 생성 성공:', result);
-      // TODO: 결제 페이지로 리디렉션 또는 다음 단계로 진행
+      console.log('고객 생성 성공:', customer);
+      const customerId = customer.id;
+
+      // ============================================
+      // 2단계: 주문 생성
+      // ============================================
+      // eslint-disable-next-line no-console
+      console.log('2단계: 주문 생성 중...');
+
+      const PRODUCT_ID = PRODUCT.id;
+
+      const orderResponse = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_id: customerId,
+          product_id: PRODUCT_ID,
+          quantity,
+          region: formState.region,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        const appError = parseApiError(orderResponse, ErrorCodes.ORDER_CREATION_FAILED);
+        setErrors((prev) => ({
+          ...prev,
+          general: ErrorMessages.ORDER_CREATION_FAILED,
+        }));
+        // eslint-disable-next-line no-console
+        console.error('주문 생성 실패:', appError);
+        return;
+      }
+
+      const order = await orderResponse.json();
+      // eslint-disable-next-line no-console
+      console.log('주문 생성 성공:', order);
+      const orderId = order.id;
+
+      // ============================================
+      // 3단계: PayPal 결제 초기화
+      // ============================================
+      // eslint-disable-next-line no-console
+      console.log('3단계: PayPal 결제 초기화 중...');
+
+      const paypalResponse = await fetch(`${API_BASE_URL}/api/orders/${orderId}/initiate-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!paypalResponse.ok) {
+        const appError = parseApiError(paypalResponse, ErrorCodes.PAYMENT_PROCESSING_FAILED);
+        setErrors((prev) => ({
+          ...prev,
+          general: ErrorMessages.PAYMENT_PROCESSING_FAILED,
+        }));
+        // eslint-disable-next-line no-console
+        console.error('결제 초기화 실패:', appError);
+        return;
+      }
+
+      const paypalData = await paypalResponse.json();
+      const approvalUrl = paypalData.approval_url;
+
+      // eslint-disable-next-line no-console
+      console.log('PayPal 승인 URL:', approvalUrl);
+
+      // ============================================
+      // 4단계: PayPal 리다이렉션
+      // ============================================
+      // eslint-disable-next-line no-console
+      console.log('4단계: PayPal로 리다이렉션 중...');
+
+      // 사용자를 PayPal 승인 페이지로 리다이렉션
+      onNavigate(approvalUrl);
     } catch (error) {
+      // graceful handling: 예상하지 못한 에러 처리
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      setErrors((prev) => ({
+        ...prev,
+        general: errorMessage,
+      }));
       // eslint-disable-next-line no-console
       console.error('주문 생성 중 오류 발생:', error);
-      // TODO: 사용자에게 에러 메시지 표시
     }
   };
 
@@ -283,6 +416,23 @@ const OrderForm: React.FC = () => {
               <label className="text-sm font-medium text-gray-600 block">
                 Address (Street, Barangay)
               </label>
+
+              {/* 로딩 상태 피드백 */}
+              {isLoadingAddressAPI && (
+                <p className="text-sm text-gray-500 flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+                  주소 검색을 준비 중입니다...
+                </p>
+              )}
+
+              {/* 에러 메시지 */}
+              {addressError && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <span>⚠️</span>
+                  {addressError}
+                </p>
+              )}
+
               <input
                 ref={addressInputRef}
                 type="text"
@@ -290,7 +440,12 @@ const OrderForm: React.FC = () => {
                 value={formState.address}
                 onChange={handleChange}
                 placeholder="Search with Google Places..."
-                className="w-full px-4 py-3 border border-gray-200 rounded-md focus:outline-none focus:border-[#C49A9A] focus:ring-1 focus:ring-[#C49A9A] transition-all placeholder:text-gray-300"
+                disabled={isLoadingAddressAPI}
+                className={`
+                  w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-1 transition-all placeholder:text-gray-300
+                  ${addressError ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 focus:border-[#C49A9A] focus:ring-[#C49A9A]'}
+                  ${isLoadingAddressAPI ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
               />
             </div>
 

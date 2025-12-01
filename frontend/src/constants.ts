@@ -1,5 +1,8 @@
 import { Product, Review } from './types';
 
+// API 설정
+export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+
 export const PRODUCT: Product = {
   id: 'rice-sunscreen-50ml',
   name: 'Santa Here Rice Sunscreen 50ml',

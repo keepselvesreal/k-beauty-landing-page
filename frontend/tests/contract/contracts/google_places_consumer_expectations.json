@@ -1,0 +1,202 @@
+{
+  "name": "Google Places API Consumer Expectations",
+  "description": "OrderForm이 Google Places API로부터 기대하는 응답 형식",
+  "consumer": "OrderForm Component",
+  "provider": "Google Places API (Autocomplete)",
+  "version": "1.0.0",
+  "expectations": [
+    {
+      "interaction": 1,
+      "name": "Autocomplete 초기화 옵션",
+      "description": "Google Maps API가 Autocomplete 클래스를 올바른 옵션으로 제공해야 함",
+      "request": {
+        "type": "Constructor Call",
+        "method": "new google.maps.places.Autocomplete(inputElement, options)",
+        "expectedOptions": {
+          "types": ["geocode"],
+          "componentRestrictions": {
+            "country": "ph"
+          }
+        }
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "type": "Autocomplete Instance",
+          "methods": [
+            {
+              "name": "addListener",
+              "description": "이벤트 리스너 등록",
+              "parameters": [
+                {
+                  "name": "eventName",
+                  "type": "string",
+                  "example": "place_changed"
+                },
+                {
+                  "name": "callback",
+                  "type": "function"
+                }
+              ]
+            },
+            {
+              "name": "getPlace",
+              "description": "현재 선택된 place 객체 반환",
+              "returns": {
+                "$ref": "#/responses/placeObject"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "interaction": 2,
+      "name": "place_changed 이벤트",
+      "description": "사용자가 장소를 선택하면 place_changed 이벤트가 발생해야 함",
+      "request": {
+        "type": "Event",
+        "eventName": "place_changed",
+        "trigger": "User selects a place from Autocomplete suggestions"
+      },
+      "response": {
+        "status": "Event Fired",
+        "body": {
+          "type": "Event Callback",
+          "description": "place_changed 이벤트 발생 시 등록된 콜백이 실행됨"
+        }
+      }
+    },
+    {
+      "interaction": 3,
+      "name": "Valid Place 객체 반환",
+      "description": "getPlace()가 완전한 place 객체를 반환해야 함",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.getPlace()",
+        "trigger": "User selects a place from Autocomplete"
+      },
+      "response": {
+        "status": "OK",
+        "body": {
+          "$ref": "#/responses/placeObject"
+        }
+      }
+    },
+    {
+      "interaction": 4,
+      "name": "Invalid Place 객체 (geometry 없음)",
+      "description": "geometry가 없는 place 객체는 무시되어야 함 (OrderForm의 검증)",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.getPlace()",
+        "scenario": "User types but doesn't select from suggestions (incomplete place)"
+      },
+      "response": {
+        "status": "Incomplete",
+        "body": {
+          "type": "Place Object",
+          "formatted_address": "Manila, Philippines",
+          "geometry": null,
+          "place_id": "ChIJR0h8ZhWvEmoRmheTjarani4",
+          "note": "geometry가 없으므로 OrderForm에서 무시됨"
+        }
+      }
+    },
+    {
+      "interaction": 5,
+      "name": "Invalid Place 객체 (place_id 없음)",
+      "description": "place_id가 없는 place 객체는 무시되어야 함 (OrderForm의 검증)",
+      "request": {
+        "type": "Method Call",
+        "method": "autocomplete.getPlace()",
+        "scenario": "Place object without place_id"
+      },
+      "response": {
+        "status": "Incomplete",
+        "body": {
+          "type": "Place Object",
+          "formatted_address": "Manila, Philippines",
+          "geometry": {
+            "location": {
+              "lat": 14.5995,
+              "lng": 120.9842
+            }
+          },
+          "place_id": null,
+          "note": "place_id가 없으므로 OrderForm에서 무시됨"
+        }
+      }
+    }
+  ],
+  "responses": {
+    "placeObject": {
+      "type": "Object",
+      "required": ["formatted_address", "geometry", "place_id"],
+      "properties": {
+        "formatted_address": {
+          "type": "string",
+          "description": "사용자가 입력할 주소 필드에 표시될 텍스트",
+          "example": "Manila, NCR, Philippines"
+        },
+        "geometry": {
+          "type": "Object",
+          "required": ["location"],
+          "description": "좌표 정보 (필수)",
+          "properties": {
+            "location": {
+              "type": "Object",
+              "required": ["lat", "lng"],
+              "properties": {
+                "lat": {
+                  "type": "number",
+                  "description": "위도",
+                  "example": 14.5995
+                },
+                "lng": {
+                  "type": "number",
+                  "description": "경도",
+                  "example": 120.9842
+                }
+              }
+            }
+          }
+        },
+        "place_id": {
+          "type": "string",
+          "description": "Google Places API 고유 ID (필수)",
+          "example": "ChIJR0h8ZhWvEmoRmheTjarani4"
+        },
+        "address_components": {
+          "type": "Array",
+          "description": "주소 구성 요소 (선택)",
+          "items": {
+            "type": "Object",
+            "properties": {
+              "long_name": {
+                "type": "string"
+              },
+              "short_name": {
+                "type": "string"
+              },
+              "types": {
+                "type": "Array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "notes": [
+    "OrderForm은 Google Places Autocomplete이 다음을 제공해야 한다고 기대함:",
+    "1. types: ['geocode'] 옵션으로 Autocomplete 초기화",
+    "2. componentRestrictions: { country: 'ph' }로 필리핀 지역만 검색",
+    "3. place_changed 이벤트가 사용자 선택 시 발생",
+    "4. getPlace()가 formatted_address, geometry, place_id를 포함한 객체 반환",
+    "5. geometry나 place_id가 없으면 OrderForm이 해당 place를 무시함"
+  ]
+}
