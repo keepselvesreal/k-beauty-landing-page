@@ -4,10 +4,10 @@ import App from './App';
 
 // Google Places API 동적 로드
 function loadGooglePlacesApi() {
-  const apiKey = process.env.GEMINI_API_KEY || '';
+  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY || '';
   if (!apiKey) {
     // eslint-disable-next-line no-console
-    console.warn('GOOGLE_PLACES_API_KEY 환경변수가 설정되지 않음');
+    console.warn('VITE_GOOGLE_PLACES_API_KEY 환경변수가 설정되지 않음');
     return;
   }
 
