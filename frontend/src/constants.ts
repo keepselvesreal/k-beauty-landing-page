@@ -1,7 +1,9 @@
 import { Product, Review } from './types';
 
 // API 설정
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+// Vite: vite.config.ts의 define 옵션에서 명시적으로 주입
+// Jest: process.env에서 직접 읽음 (VITE_API_BASE_URL 환경변수 필수)
+export const API_BASE_URL = process.env.VITE_API_BASE_URL as string;
 
 export const PRODUCT: Product = {
   id: 'rice-sunscreen-50ml',

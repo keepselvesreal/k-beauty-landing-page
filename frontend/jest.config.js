@@ -1,6 +1,17 @@
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 export default {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
+  testEnvironmentOptions: {
+    // jsdom에서 실제 네트워크 요청 허용 (Google Maps API 로드용)
+    url: 'http://localhost',
+    customExportConditions: ['node', 'node-addons'],
+    // 외부 스크립트 로드 허용
+    pretendToBeVisual: true,
+  },
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: [
     '<rootDir>/tests/**/*.test.ts?(x)',
@@ -12,6 +23,7 @@ export default {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
         jsx: 'react-jsx',
+        module: 'esnext',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true
       }
