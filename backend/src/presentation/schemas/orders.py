@@ -41,8 +41,11 @@ class OrderResponse(BaseModel):
     subtotal: Decimal
     shipping_fee: Decimal
     total_price: Decimal
-    status: str
+    payment_status: str  # pending, paid, payment_failed, cancelled
+    shipping_status: str  # preparing, shipped, delivered
     paypal_order_id: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    shipped_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

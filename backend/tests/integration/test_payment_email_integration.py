@@ -53,7 +53,7 @@ class TestPaymentEmailIntegration:
             OrderService.initiate_payment(db, order.id)
 
         # Step 3: 결제 완료
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
 
         # Step 4: Affiliate Commission 기록
@@ -95,7 +95,7 @@ class TestPaymentEmailIntegration:
 
         # ===== WHEN (실행 동작) =====
         # Step 2: 결제 완료
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
 
         # Step 3: 이메일 발송 실패 (SMTP 연결 오류)
@@ -112,4 +112,4 @@ class TestPaymentEmailIntegration:
         email_log = order.email_logs[0]
         assert email_log.status == "failed"
         # 주문은 정상 진행됨
-        assert order.status == "paid"
+        assert order.payment_status == "paid"

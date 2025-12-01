@@ -55,7 +55,7 @@ class TestPaymentAndAffiliateIntegration:
             payment_result = OrderService.initiate_payment(db, order.id)
 
         # Step 4: 결제 완료 상태로 변경
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
 
         # Step 5: Commission 기록 (핵심 동작)
@@ -85,7 +85,7 @@ class TestPaymentAndAffiliateIntegration:
 
         # ===== WHEN (실행 동작) =====
         # Step 2: 결제 완료 상태로 변경
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
 
         # Step 3: Commission 기록 시도 (핵심 동작)
@@ -199,7 +199,7 @@ class TestPaymentAndAffiliateIntegration:
 
         # ===== WHEN (실행 동작) =====
         # Step 3: 결제 완료
-        order.status = "paid"
+        order.payment_status = "paid"
         db.commit()
 
         # Step 4: Commission 기록 (핵심 동작)

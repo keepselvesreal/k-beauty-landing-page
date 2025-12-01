@@ -156,7 +156,7 @@ def order_with_customer(test_db: Session, sample_customer: Customer, sample_prod
         subtotal=Decimal("50.00"),
         shipping_fee=Decimal("100.00"),
         total_price=Decimal("150.00"),
-        status="pending",
+        payment_status="pending",
         profit=Decimal("80.00"),
     )
     test_db.add(order)

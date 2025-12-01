@@ -29,7 +29,7 @@ class OrderRepository:
         subtotal: Decimal,
         shipping_fee: Decimal,
         total_price: Decimal,
-        status: str = "pending",
+        payment_status: str = "pending",
     ) -> Order:
         """주문 생성"""
         order = Order(
@@ -38,7 +38,7 @@ class OrderRepository:
             subtotal=subtotal,
             shipping_fee=shipping_fee,
             total_price=total_price,
-            status=status,
+            payment_status=payment_status,
         )
         db.add(order)
         db.commit()
@@ -66,18 +66,41 @@ class OrderRepository:
         return order_item
 
     @staticmethod
+    def update_payment_status(
+        db: Session,
+        order_id: UUID,
+        payment_status: str,
+    ) -> Order:
+        """주문 결제 상태 업데이트"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.payment_status = payment_status
+            db.commit()
+            db.refresh(order)
+        return order
+
+    @staticmethod
+    def update_shipping_status(
+        db: Session,
+        order_id: UUID,
+        shipping_status: str,
+    ) -> Order:
+        """주문 배송 상태 업데이트"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.shipping_status = shipping_status
+            db.commit()
+            db.refresh(order)
+        return order
+
+    @staticmethod
     def update_order_status(
         db: Session,
         order_id: UUID,
         status: str,
     ) -> Order:
-        """주문 상태 업데이트"""
-        order = db.query(Order).filter(Order.id == order_id).first()
-        if order:
-            order.status = status
-            db.commit()
-            db.refresh(order)
-        return order
+        """주문 결제 상태 업데이트 (하위호환성)"""
+        return OrderRepository.update_payment_status(db, order_id, status)
 
     @staticmethod
     def update_order_payment_info(

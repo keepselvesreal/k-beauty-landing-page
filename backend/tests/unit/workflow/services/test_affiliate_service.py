@@ -25,7 +25,7 @@ class TestRecordCommissionIfApplicable:
 
         # Order에 affiliate_id 설정
         order_with_customer.affiliate_id = affiliate_active.id
-        order_with_customer.status = "paid"
+        order_with_customer.payment_status = "paid"
         test_db.add(order_with_customer)
         test_db.commit()
 
@@ -55,7 +55,7 @@ class TestRecordCommissionIfApplicable:
         """TC-2.1.2: Affiliate code 없는 경우 commission 미기록"""
         # Given
         order_with_customer.affiliate_id = None
-        order_with_customer.status = "paid"
+        order_with_customer.payment_status = "paid"
         test_db.add(order_with_customer)
         test_db.commit()
 

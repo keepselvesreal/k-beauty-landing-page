@@ -123,7 +123,7 @@ class Order(Base):
     total_price = Column(Numeric(10, 2), nullable=False)
 
     # 결제 정보
-    status = Column(String(50), default="pending", nullable=False, index=True)
+    payment_status = Column(String(50), default="pending", nullable=False, index=True)
     paypal_order_id = Column(String(255))
     paypal_capture_id = Column(String(255))
     paypal_fee = Column(Numeric(10, 2))
@@ -131,7 +131,7 @@ class Order(Base):
     paid_at = Column(DateTime)
 
     # 배송 정보
-    shipping_status = Column(String(50), default="pending", index=True)
+    shipping_status = Column(String(50), default="preparing", index=True)
     shipped_at = Column(DateTime)
 
     # 어필리에이트

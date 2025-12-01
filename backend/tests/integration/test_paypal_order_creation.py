@@ -36,7 +36,7 @@ class TestPayPalOrderCreation:
         )
 
         order = order_result["order"]
-        assert order.status == "pending", "초기 주문 상태는 pending이어야 함"
+        assert order.payment_status == "pending", "초기 주문 상태는 pending이어야 함"
         assert order.paypal_order_id is None, "아직 PayPal Order ID가 없어야 함"
 
         # 2단계: PayPal Order 생성
@@ -120,7 +120,7 @@ class TestPayPalOrderCreation:
             # Order 상태 확인
             from src.persistence.repositories.order_repository import OrderRepository
             updated_order = OrderRepository.get_order_by_id(db, order.id)
-            assert updated_order.status == "payment_failed", "주문 상태가 payment_failed로 업데이트되어야 함"
+            assert updated_order.payment_status == "payment_failed", "주문 상태가 payment_failed로 업데이트되어야 함"
 
     def test_total_order_flow_with_payment(self, client, complete_test_data):
         """
@@ -151,7 +151,7 @@ class TestPayPalOrderCreation:
         assert order.subtotal == Decimal("150.00")  # 50 * 3
         assert order.shipping_fee == Decimal("120.00")  # Luzon
         assert order.total_price == Decimal("270.00")
-        assert order.status == "pending"
+        assert order.payment_status == "pending"
 
         # Step 2: PayPal 결제 초기화
         with patch('src.workflow.services.payment_service.paypalrestsdk.Payment') as mock_payment_class:

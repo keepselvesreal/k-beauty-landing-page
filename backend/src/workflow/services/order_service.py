@@ -89,7 +89,7 @@ class OrderService:
             subtotal=subtotal,
             shipping_fee=shipping_fee,
             total_price=total_price,
-            status="pending",
+            payment_status="pending",
         )
 
         # 7. 주문 상품 추가

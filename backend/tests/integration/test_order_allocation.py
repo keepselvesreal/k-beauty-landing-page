@@ -79,7 +79,7 @@ class TestOrderAllocationIntegration:
             subtotal=Decimal(str(sample_product.price * quantity)),
             shipping_fee=Decimal("100.00"),
             total_price=Decimal(str(sample_product.price * quantity + 100)),
-            status="pending",
+            payment_status="pending",
             fulfillment_partner_id=None,
         )
         test_db.add(order)

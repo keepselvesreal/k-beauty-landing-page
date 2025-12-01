@@ -28,7 +28,8 @@ class TestCreateOrder:
         assert result["subtotal"] == "250.00"  # 50 * 5
         assert result["shipping_fee"] == "100.00"  # NCR 배송료
         assert result["total_price"] == "350.00"  # 250 + 100
-        assert result["status"] == "pending"
+        assert result["payment_status"] == "pending"
+        assert result["shipping_status"] == "preparing"
 
     def test_create_order_customer_not_found(self, client: TestClient, complete_test_data):
         """고객을 찾을 수 없을 때"""
@@ -156,7 +157,8 @@ class TestGetOrder:
         assert get_response.status_code == 200
         result = get_response.json()
         assert result["order_number"] == order_number
-        assert result["status"] == "pending"
+        assert result["payment_status"] == "pending"
+        assert result["shipping_status"] == "preparing"
 
     def test_get_order_not_found(self, client: TestClient):
         """주문을 찾을 수 없을 때"""
