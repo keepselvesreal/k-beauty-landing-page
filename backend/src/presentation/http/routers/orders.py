@@ -69,3 +69,56 @@ async def get_order(
             },
         )
     return order
+
+
+@router.post("/{order_id}/initiate-payment")
+async def initiate_payment(
+    order_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    PayPal 결제 초기화
+
+    주문에 대한 PayPal 결제를 시작하고 승인 URL 반환
+
+    Returns:
+        {
+            "paypal_order_id": str,
+            "approval_url": str
+        }
+    """
+    from uuid import UUID
+
+    try:
+        # UUID로 변환
+        order_uuid = UUID(order_id)
+
+        result = OrderService.initiate_payment(db, order_uuid)
+        return {
+            "paypal_order_id": result["paypal_order_id"],
+            "approval_url": result["approval_url"],
+        }
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "INVALID_ORDER_ID",
+                "message": "유효하지 않은 주문 ID 형식입니다.",
+            },
+        )
+    except OrderException as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": str(e),
+            },
+        )
