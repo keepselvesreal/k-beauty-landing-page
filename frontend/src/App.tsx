@@ -17,9 +17,7 @@ const App: React.FC = () => {
   const [userLoading, setUserLoading] = useState(false);
 
   // URL 경로 확인
-  const currentPath = useMemo(() => {
-    return window.location.pathname;
-  }, []);
+  const currentPath = window.location.pathname;
 
   // 주문 번호 추출 (예: /order-confirmation/ORD-xxx)
   const isOrderConfirmationPage = currentPath.startsWith('/order-confirmation/');
