@@ -22,7 +22,25 @@ from src.persistence.database import Base
 
 
 # ============================================
-# 1. Customers (고객)
+# 1. Users (사용자 인증)
+# ============================================
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(50), nullable=False, default="fulfillment_partner")
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 관계
+    fulfillment_partner = relationship("FulfillmentPartner", back_populates="user", uselist=False)
+
+
+# ============================================
+# 2. Customers (고객)
 # ============================================
 class Customer(Base):
     __tablename__ = "customers"
@@ -41,12 +59,13 @@ class Customer(Base):
 
 
 # ============================================
-# 2. Fulfillment Partners (배송담당자)
+# 3. Fulfillment Partners (배송담당자)
 # ============================================
 class FulfillmentPartner(Base):
     __tablename__ = "fulfillment_partners"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True)
     phone = Column(String(20))
@@ -58,13 +77,14 @@ class FulfillmentPartner(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 관계
+    user = relationship("User", back_populates="fulfillment_partner")
     allocated_inventory = relationship("PartnerAllocatedInventory", back_populates="partner")
     orders = relationship("Order", back_populates="fulfillment_partner")
     shipments = relationship("Shipment", back_populates="partner")
 
 
 # ============================================
-# 3. Products (상품)
+# 4. Products (상품)
 # ============================================
 class Product(Base):
     __tablename__ = "products"
@@ -85,7 +105,7 @@ class Product(Base):
 
 
 # ============================================
-# 4. Partner Allocated Inventory (배송담당자별 할당 재고)
+# 5. Partner Allocated Inventory (배송담당자별 할당 재고)
 # ============================================
 class PartnerAllocatedInventory(Base):
     __tablename__ = "partner_allocated_inventory"
@@ -107,7 +127,7 @@ class PartnerAllocatedInventory(Base):
 
 
 # ============================================
-# 5. Orders (주문)
+# 6. Orders (주문)
 # ============================================
 class Order(Base):
     __tablename__ = "orders"
@@ -164,7 +184,7 @@ class Order(Base):
 
 
 # ============================================
-# 6. Order Items (주문 상품)
+# 7. Order Items (주문 상품)
 # ============================================
 class OrderItem(Base):
     __tablename__ = "order_items"
@@ -183,7 +203,7 @@ class OrderItem(Base):
 
 
 # ============================================
-# 7. Shipment Allocations (배송 할당 기록)
+# 8. Shipment Allocations (배송 할당 기록)
 # ============================================
 class ShipmentAllocation(Base):
     __tablename__ = "shipment_allocations"
@@ -202,7 +222,7 @@ class ShipmentAllocation(Base):
 
 
 # ============================================
-# 8. Shipments (배송 기록)
+# 9. Shipments (배송 기록)
 # ============================================
 class Shipment(Base):
     __tablename__ = "shipments"
@@ -224,7 +244,7 @@ class Shipment(Base):
 
 
 # ============================================
-# 9. Email Logs (이메일 발송 로그)
+# 10. Email Logs (이메일 발송 로그)
 # ============================================
 class EmailLog(Base):
     __tablename__ = "email_logs"
@@ -243,7 +263,7 @@ class EmailLog(Base):
 
 
 # ============================================
-# 10. Affiliate Sales (어필리에이트 판매 기록)
+# 11. Affiliate Sales (어필리에이트 판매 기록)
 # ============================================
 class AffiliateSale(Base):
     __tablename__ = "affiliate_sales"
@@ -260,7 +280,7 @@ class AffiliateSale(Base):
 
 
 # ============================================
-# 11. Shipping Rates (지역별 배송료)
+# 12. Shipping Rates (지역별 배송료)
 # ============================================
 class ShippingRate(Base):
     __tablename__ = "shipping_rates"
@@ -273,7 +293,7 @@ class ShippingRate(Base):
 
 
 # ============================================
-# 12. Affiliates (어필리에이트)
+# 13. Affiliates (어필리에이트)
 # ============================================
 class Affiliate(Base):
     __tablename__ = "affiliates"
@@ -292,7 +312,7 @@ class Affiliate(Base):
 
 
 # ============================================
-# 13. Affiliate Error Logs (어필리에이트 오류 기록)
+# 14. Affiliate Error Logs (어필리에이트 오류 기록)
 # ============================================
 class AffiliateErrorLog(Base):
     __tablename__ = "affiliate_error_logs"
@@ -311,7 +331,7 @@ class AffiliateErrorLog(Base):
 
 
 # ============================================
-# 14. Settings (시스템 설정)
+# 15. Settings (시스템 설정)
 # ============================================
 class Settings(Base):
     __tablename__ = "settings"

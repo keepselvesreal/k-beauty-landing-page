@@ -50,3 +50,12 @@ class EmailAuthenticationError(BusinessError):
         self.code = code
         self.message = message
         super().__init__(message)
+
+
+class AuthenticationError(BusinessError):
+    """사용자 인증 에러"""
+
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)

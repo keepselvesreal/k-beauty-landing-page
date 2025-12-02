@@ -1,54 +1,44 @@
 {
   "products": [
     {
-      "name": "Santa Here Rice Sunscreen 50ml",
-      "description": "A moisturizing chemical sunscreen that is comfortable on the skin with SPF 50+ PA++++. Enriched with 30% Rice Extract and Grain Fermented Extracts that deeply hydrate and nourish the skin, making it perfect for sensitive skin.",
-      "price": 750.00,
-      "sku": "rice-sunscreen-50ml",
-      "image_url": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=1887&auto=format&fit=crop",
+      "name": "조선미녀 맑은쌀 선크림 50ml",
+      "description": "프리미엄 K-뷰티 선크림, 맑은 쌀 추출물 함유",
+      "price": 1500,
+      "sku": "JSMJ-RICE-SUNSCREEN-001",
+      "image_url": "https://example.com/sunscreen.jpg",
       "is_active": true
     }
   ],
   "fulfillment_partners": [
     {
       "name": "NCR Fulfillment Hub",
-      "email": "logistics@ncr-hub.ph",
-      "phone": "+63-2-8888-1111",
+      "email": "ncr@fulfillment.com",
+      "phone": "09123456789",
+      "address": "Manila, Philippines",
       "region": "NCR",
-      "address": "456 Warehouse St, Manila",
       "is_active": true
     },
     {
-      "name": "Luzon Distribution Center",
-      "email": "logistics@luzon-dist.ph",
-      "phone": "+63-42-7777-2222",
+      "name": "Luzon Fulfillment Hub",
+      "email": "luzon@fulfillment.com",
+      "phone": "09234567890",
+      "address": "Nueva Ecija, Philippines",
       "region": "Luzon",
-      "address": "789 Logistics Ave, Laguna",
       "is_active": true
     }
   ],
   "inventory": [
     {
-      "product_sku": "rice-sunscreen-50ml",
+      "product_sku": "JSMJ-RICE-SUNSCREEN-001",
       "partner_name": "NCR Fulfillment Hub",
       "allocated_quantity": 12,
       "remaining_quantity": 12
     },
     {
-      "product_sku": "rice-sunscreen-50ml",
-      "partner_name": "Luzon Distribution Center",
+      "product_sku": "JSMJ-RICE-SUNSCREEN-001",
+      "partner_name": "Luzon Fulfillment Hub",
       "allocated_quantity": 8,
       "remaining_quantity": 8
-    }
-  ],
-  "customers": [
-    {
-      "fullName": "Maria Santos",
-      "email": "maria.santos@example.com",
-      "phone": "09171234567",
-      "region": "NCR",
-      "address": "Fort Bonifacio, Taguig, Metro Manila, Philippines",
-      "detailedAddress": "Unit 1234, Tower A"
     }
   ]
 }

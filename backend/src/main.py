@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.presentation.http.routers import customers, orders, shipping
+from src.presentation.http.routers import admin, auth, customers, orders, shipping
 
 # from src.persistence.database import engine, Base
 
@@ -29,6 +29,8 @@ app.add_middleware(
 )
 
 # 라우터 등록
+app.include_router(admin.router)
+app.include_router(auth.router)
 app.include_router(shipping.router)
 app.include_router(customers.router)
 app.include_router(orders.router)

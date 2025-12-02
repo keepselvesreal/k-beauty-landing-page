@@ -8,9 +8,10 @@ from decimal import Decimal
 
 from src.persistence.database import SessionLocal
 from src.persistence.models import (
-    Product, FulfillmentPartner, PartnerAllocatedInventory, ShippingRate,
+    User, Product, FulfillmentPartner, PartnerAllocatedInventory, ShippingRate,
     Customer, Order, OrderItem
 )
+from src.workflow.services.authentication_service import AuthenticationService
 
 
 def seed_dummy_data():
@@ -55,11 +56,29 @@ def seed_dummy_data():
 
         db.commit()
 
-        # 4. 배송담당자 생성
+        # 4. 배송담당자 생성 (User와 함께)
         partners_data = data.get("fulfillment_partners", [])
         created_partners = {}
+        partner_credentials = {}  # 로그인 정보 저장
+
         for partner_data in partners_data:
+            # User 생성 (인증용)
+            email = partner_data["email"]
+            password = f"Partner@{partner_data['region']}123"  # 임시 비밀번호
+            password_hash = AuthenticationService.hash_password(password)
+
+            user = User(
+                email=email,
+                password_hash=password_hash,
+                role="fulfillment_partner",
+                is_active=True,
+            )
+            db.add(user)
+            db.flush()  # user.id를 얻기 위해
+
+            # FulfillmentPartner 생성 (user_id 연결)
             partner = FulfillmentPartner(
+                user_id=user.id,
                 name=partner_data["name"],
                 email=partner_data["email"],
                 phone=partner_data["phone"],
@@ -68,7 +87,14 @@ def seed_dummy_data():
                 is_active=partner_data.get("is_active", True),
             )
             db.add(partner)
+            db.flush()
+
             created_partners[partner_data["name"]] = partner
+            partner_credentials[partner_data["name"]] = {
+                "email": email,
+                "password": password,
+                "user_id": str(user.id),
+            }
 
         db.commit()
 
@@ -197,9 +223,12 @@ def seed_dummy_data():
 
         print(f"🏢 배송담당자 ({len(created_partners)}개):")
         for name, partner in created_partners.items():
+            creds = partner_credentials[name]
             print(f"  • {name}")
             print(f"    지역: {partner.region}")
-            print(f"    ID: {partner.id}\n")
+            print(f"    ID: {partner.id}")
+            print(f"    📧 로그인 이메일: {creds['email']}")
+            print(f"    🔑 임시 비밀번호: {creds['password']}\n")
 
         print(f"📊 총 재고: {total_inventory}개")
         for inv_data in inventory_data:
