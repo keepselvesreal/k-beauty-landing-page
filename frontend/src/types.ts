@@ -64,3 +64,26 @@ export interface Customer {
   address: string;
   detailed_address?: string;
 }
+
+export interface FulfillmentPartnerOrderProduct {
+  name: string;
+  quantity: number;
+  unit_price: number | string;
+}
+
+export interface FulfillmentPartnerOrder {
+  order_id: string;
+  order_number: string;
+  customer_email: string;
+  products: FulfillmentPartnerOrderProduct[];
+  shipping_address: string;
+  total_price: number | string;
+  status: string;
+  created_at: string;
+}
+
+export interface FulfillmentPartnerOrdersResponse {
+  partner_id: string;
+  partner_name: string;
+  orders: FulfillmentPartnerOrder[];
+}

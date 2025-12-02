@@ -42,5 +42,19 @@
   "enterReason": "Enter your reason",
   "submitRequest": "Request",
   "backToHome": "Back to Home",
-  "requestReason": "Request Reason"
+  "requestReason": "Request Reason",
+  "fulfillmentPartnerLogin": "Fulfillment Partner Login",
+  "accessDashboard": "Access your fulfillment dashboard",
+  "selectRole": "Select Role",
+  "fulfillmentPartner": "Fulfillment Partner",
+  "influencer": "Influencer",
+  "admin": "Admin",
+  "password": "Password",
+  "enterEmail": "Enter your email",
+  "enterPassword": "Enter your password",
+  "login": "Login",
+  "loggingIn": "Logging in...",
+  "testAccount": "Test Account",
+  "backToHome": "← Back to Home",
+  "languageToggle": "Language"
 }

@@ -150,3 +150,33 @@ class OrderRepository:
             db.commit()
             db.refresh(order)
         return order
+
+    @staticmethod
+    def get_orders_by_fulfillment_partner(
+        db: Session,
+        fulfillment_partner_id: UUID,
+    ) -> list[Order]:
+        """
+        배송담당자에게 할당된 주문 조회
+
+        조건:
+        - fulfillment_partner_id와 일치
+        - payment_status = 'completed' (결제 완료)
+        - shipping_status = 'preparing' (배송 대기 중)
+        - 생성 날짜 역순 정렬 (최신 먼저)
+
+        Args:
+            db: 데이터베이스 세션
+            fulfillment_partner_id: 배송담당자 ID
+
+        Returns:
+            조건을 만족하는 Order 리스트
+        """
+        orders = db.query(Order).filter(
+            Order.fulfillment_partner_id == fulfillment_partner_id,
+            Order.payment_status == "completed",
+            Order.shipping_status == "preparing",
+        ).order_by(
+            Order.created_at.desc()
+        ).all()
+        return orders

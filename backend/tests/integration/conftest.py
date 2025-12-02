@@ -12,6 +12,7 @@ from src.persistence.models import (
     ShippingRate,
     Affiliate,
     Settings,
+    User,
 )
 
 
@@ -51,7 +52,19 @@ def sample_product(test_db: Session):
 @pytest.fixture
 def sample_fulfillment_partner(test_db: Session):
     """샘플 배송담당자"""
+    # User 생성
+    user = User(
+        email="partner1@example.com",
+        password_hash="hashed_password",
+        role="fulfillment_partner",
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+
+    # FulfillmentPartner 생성
     partner = FulfillmentPartner(
+        user_id=user.id,
         name="Manila Express Partner",
         email="partner1@example.com",
         phone="09123456789",

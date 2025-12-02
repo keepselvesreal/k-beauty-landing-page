@@ -42,5 +42,19 @@
   "enterReason": "Ipasok ang iyong dahilan",
   "submitRequest": "Humingi",
   "backToHome": "Bumalik sa Tahanan",
-  "requestReason": "Dahilan ng Kahilingan"
+  "requestReason": "Dahilan ng Kahilingan",
+  "fulfillmentPartnerLogin": "Login ng Fulfillment Partner",
+  "accessDashboard": "I-access ang iyong fulfillment dashboard",
+  "selectRole": "Piliin ang Papel",
+  "fulfillmentPartner": "Fulfillment Partner",
+  "influencer": "Influencer",
+  "admin": "Admin",
+  "password": "Password",
+  "enterEmail": "Ipasok ang iyong email",
+  "enterPassword": "Ipasok ang iyong password",
+  "login": "Mag-login",
+  "loggingIn": "Nag-l-login...",
+  "testAccount": "Test Account",
+  "backToHome": "← Bumalik sa Tahanan",
+  "languageToggle": "Wika"
 }
