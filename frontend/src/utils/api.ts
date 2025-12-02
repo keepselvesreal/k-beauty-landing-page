@@ -10,12 +10,12 @@ export interface CurrentUser {
 
 export const api = {
   // 배송담당자 로그인 (토큰을 메모리에만 저장, 실제로는 HttpOnly 쿠키로 반환됨)
-  async loginFulfillmentPartner(email: string, password: string) {
+  async loginFulfillmentPartner(email: string, password: string, role: string = 'fulfillment-partner') {
     const response = await fetch(`${API_BASE_URL}/api/auth/fulfillment-partner/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include', // 쿠키 자동 포함
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, role }),
     });
 
     if (!response.ok) {

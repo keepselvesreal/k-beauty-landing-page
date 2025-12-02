@@ -20,7 +20,7 @@ const FulfillmentPartnerLogin: React.FC<FulfillmentPartnerLoginProps> = ({ onLog
     try {
       setLoading(true);
       setError(null);
-      await api.loginFulfillmentPartner(email, password);
+      await api.loginFulfillmentPartner(email, password, role);
       onLoginSuccess();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';

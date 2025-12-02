@@ -7,6 +7,7 @@ class LoginRequest(BaseModel):
     """로그인 요청"""
     email: EmailStr
     password: str
+    role: str = "fulfillment-partner"  # 기본값: fulfillment-partner
 
 
 class TokenResponse(BaseModel):

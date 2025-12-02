@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Header from './components/Header';
 import ProductHero from './components/ProductHero';
 import Testimonials from './components/Testimonials';
@@ -7,10 +7,12 @@ import OrderConfirmation from './components/OrderConfirmation';
 import AdminPanel from './components/AdminPanel';
 import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
-import { api } from './utils/api';
+import { api, CurrentUser } from './utils/api';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(api.isLoggedIn());
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [userLoading, setUserLoading] = useState(false);
 
   // URL 경로 확인
   const currentPath = useMemo(() => {
@@ -27,6 +29,27 @@ const App: React.FC = () => {
     ? currentPath.split('/order-confirmation/')[1]
     : null;
 
+  // 로그인 상태 변경 시 사용자 정보 조회
+  useEffect(() => {
+    if (isLoggedIn && !currentUser) {
+      const fetchUser = async () => {
+        try {
+          setUserLoading(true);
+          const user = await api.getCurrentUser();
+          setCurrentUser(user);
+        } catch (err) {
+          // 토큰이 만료되었거나 유효하지 않으면 로그아웃
+          setIsLoggedIn(false);
+          setCurrentUser(null);
+          api.logout();
+        } finally {
+          setUserLoading(false);
+        }
+      };
+      fetchUser();
+    }
+  }, [isLoggedIn, currentUser]);
+
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
     window.location.href = '/dashboard';
@@ -39,7 +62,33 @@ const App: React.FC = () => {
         {isLoginPage ? (
           <FulfillmentPartnerLogin onLoginSuccess={handleLoginSuccess} />
         ) : isDashboardPage && isLoggedIn ? (
-          <FulfillmentPartnerDashboard />
+          userLoading ? (
+            <div className="flex items-center justify-center h-screen">
+              <div className="text-lg">로드 중...</div>
+            </div>
+          ) : currentUser ? (
+            currentUser.role === 'fulfillment-partner' ? (
+              <FulfillmentPartnerDashboard />
+            ) : currentUser.role === 'influencer' ? (
+              <div className="flex items-center justify-center h-screen">
+                <div className="text-center">
+                  <h1 className="text-3xl font-bold mb-4">인플루언서 대시보드</h1>
+                  <p className="text-gray-600">인플루언서 대시보드 개발 중입니다.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-screen">
+                <div className="text-center">
+                  <h1 className="text-3xl font-bold mb-4">어드민 대시보드</h1>
+                  <p className="text-gray-600">어드민 대시보드 개발 중입니다.</p>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="flex items-center justify-center h-screen">
+              <div className="text-lg text-red-600">사용자 정보를 불러올 수 없습니다.</div>
+            </div>
+          )
         ) : isAdminPage ? (
           <AdminPanel />
         ) : isOrderConfirmationPage && orderNumber ? (

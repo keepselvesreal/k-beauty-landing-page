@@ -90,10 +90,21 @@ async def login_fulfillment_partner(
             password=credentials.password,
         )
 
-        # 토큰 생성
+        # 요청된 역할과 실제 역할이 일치하는지 검증
+        # DB의 role은 'fulfillment_partner' 형식, 요청의 role은 'fulfillment-partner' 형식
+        user_actual_role = user.role.value if hasattr(user.role, 'value') else user.role
+        requested_role = credentials.role.replace('-', '_')  # 'fulfillment-partner' -> 'fulfillment_partner'
+
+        if user_actual_role != requested_role:
+            raise AuthenticationError(
+                code="ROLE_MISMATCH",
+                message=f"사용자의 역할은 {user_actual_role}입니다. {credentials.role}로 로그인할 수 없습니다.",
+            )
+
+        # 토큰 생성 - 실제 역할 사용
         token_payload = {
             "user_id": str(user.id),
-            "role": user.role.value,
+            "role": user_actual_role,  # 실제 역할 사용
             "email": user.email,
         }
         access_token = JWTTokenManager.create_access_token(token_payload)
@@ -115,11 +126,48 @@ async def login_fulfillment_partner(
 
 @router.get("/me", response_model=CurrentUserResponse)
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user),
+    authorization: str = Header(None),
 ):
     """현재 사용자 정보 조회"""
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "MISSING_TOKEN",
+                "message": "Authorization 헤더가 필요합니다.",
+            },
+        )
+
+    # Bearer 토큰 추출
+    parts = authorization.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "INVALID_TOKEN_FORMAT",
+                "message": "유효하지 않은 토큰 형식입니다.",
+            },
+        )
+
+    token = parts[1]
+
+    # JWT 토큰 검증
+    try:
+        payload = JWTTokenManager.verify_access_token(token)
+    except AuthenticationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+
+    # 토큰의 정보 반환 (검증된 역할 포함)
+    # 역할을 kebab-case로 변환 (fulfillment_partner -> fulfillment-partner)
+    role = payload.get("role", "").replace("_", "-")
     return {
-        "user_id": str(current_user.id),
-        "email": current_user.email,
-        "role": current_user.role,
+        "user_id": payload.get("user_id"),
+        "email": payload.get("email"),
+        "role": role,
     }
