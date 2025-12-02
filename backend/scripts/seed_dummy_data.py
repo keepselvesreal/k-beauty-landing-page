@@ -17,6 +17,7 @@ from scripts.seeders import (
     CustomerSeeder,
     InventorySeeder,
     OrderSeeder,
+    AffiliateSeeder,
 )
 
 
@@ -82,6 +83,20 @@ def print_result(result: dict):
             print(f"    상태: {order.shipping_status}")
             print(f"    ID: {order.id}\n")
 
+    elif result["type"] == "influencer":
+        creds = result["credentials"]
+        print(f"  • {creds['email']}")
+        print(f"    📧 Email: {creds['email']}")
+        print(f"    🔑 Password: {creds['password']}")
+        print(f"    📝 Affiliate Code: {creds['affiliate_code']}")
+        print(f"    ID: {creds['user_id']}\n")
+        print(f"  테스트 데이터:")
+        print(f"    • 클릭 수: 150")
+        print(f"    • 판매 건수: 5")
+        print(f"    • 누적 수익: ₱80.00 (16 × 5)")
+        print(f"    • 지급 완료: ₱30.00")
+        print(f"    • 지급 예상: ₱50.00 (80 - 30)\n")
+
 
 def check_existing_data(db):
     """기존 데이터 확인"""
@@ -145,6 +160,11 @@ def seed_all(db):
     )
     print_result(results["orders"])
 
+    print_separator("8️⃣  인플루언서 테스트 계정 생성 중...")
+    affiliate_seeder = AffiliateSeeder(db)
+    results["influencer"] = affiliate_seeder.seed()
+    print_result(results["influencer"])
+
     print_separator("✅ 모든 더미 데이터 생성 완료!")
 
 
@@ -154,17 +174,19 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 예시:
-  # 모든 데이터 생성
+  # 모든 데이터 생성 (인플루언서 포함)
   python -m scripts.seed_dummy_data --all
 
   # 개별 생성
   python -m scripts.seed_dummy_data --products
   python -m scripts.seed_dummy_data --users
   python -m scripts.seed_dummy_data --partners
+  python -m scripts.seed_dummy_data --influencer
 
   # 조합으로 생성
   python -m scripts.seed_dummy_data --products --users --partners
   python -m scripts.seed_dummy_data --customers --orders
+  python -m scripts.seed_dummy_data --all --influencer
         """,
     )
 
@@ -189,6 +211,11 @@ def main():
         "--orders",
         action="store_true",
         help="주문 생성 (customers, partners, products 필요)",
+    )
+    parser.add_argument(
+        "--influencer",
+        action="store_true",
+        help="인플루언서 (어필리에이트) 테스트 계정 생성",
     )
     parser.add_argument(
         "--check",
@@ -282,6 +309,12 @@ def main():
             )
             print_result(results["orders"])
 
+        if args.influencer:
+            print_separator("인플루언서 테스트 계정 생성 중...")
+            affiliate_seeder = AffiliateSeeder(db)
+            results["influencer"] = affiliate_seeder.seed()
+            print_result(results["influencer"])
+
         if not any([
             args.products,
             args.users,
@@ -290,6 +323,7 @@ def main():
             args.customers,
             args.inventory,
             args.orders,
+            args.influencer,
         ]):
             parser.print_help()
 

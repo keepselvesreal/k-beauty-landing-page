@@ -1,7 +1,7 @@
 """각 모델별 Seeder 클래스들"""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 from typing import Dict, List, Any
@@ -17,6 +17,10 @@ from src.persistence.models import (
     Customer,
     Order,
     OrderItem,
+    Affiliate,
+    AffiliateClick,
+    AffiliateSale,
+    AffiliatePayment,
 )
 from src.workflow.services.authentication_service import AuthenticationService
 
@@ -440,3 +444,101 @@ class OrderSeeder(BaseSeeder):
             "count": len(created_orders),
             "data": created_orders,
         }
+
+
+class AffiliateSeeder(BaseSeeder):
+    """인플루언서 (어필리에이트) Seeder"""
+
+    def seed(self, affiliate_data: Dict = None) -> Dict[str, Any]:
+        """인플루언서 및 어필리에이트 데이터 생성"""
+        if affiliate_data is None:
+            affiliate_data = {
+                "email": "influencer@example.com",
+                "password": "test123456",
+                "code": "santa-here-kim_influencer",
+                "name": "Kim Taesoo (인플루언서)",
+            }
+
+        try:
+            # 1. 사용자 생성
+            password_hash = AuthenticationService.hash_password(affiliate_data["password"])
+            user = User(
+                id=uuid4(),
+                email=affiliate_data["email"],
+                password_hash=password_hash,
+                role="influencer",
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            self.db.add(user)
+            self.flush()
+
+            # 2. 어필리에이트 생성
+            affiliate = Affiliate(
+                id=uuid4(),
+                user_id=user.id,
+                code=affiliate_data["code"],
+                name=affiliate_data["name"],
+                email=affiliate_data["email"],
+                is_active=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            self.db.add(affiliate)
+            self.flush()
+
+            # 3. 테스트 클릭 데이터 생성 (150개)
+            for i in range(150):
+                click = AffiliateClick(
+                    id=uuid4(),
+                    affiliate_id=affiliate.id,
+                    clicked_at=datetime.utcnow() - timedelta(days=30 - (i // 5)),
+                )
+                self.db.add(click)
+
+            # 4. 테스트 판매 데이터 생성 (5건)
+            # Note: AffiliateSale의 order_id는 필수 외래키이므로 실제 orders가 필요함
+            # 테스트 목적이므로 실제 판매 데이터는 대시보드에서 주문 생성 시 자동으로 추가됨
+            # for i in range(5):
+            #     sale = AffiliateSale(
+            #         id=uuid4(),
+            #         affiliate_id=affiliate.id,
+            #         order_id=...,  # 실제 order ID 필요
+            #         commission_amount=Decimal("16.00"),
+            #         created_at=datetime.utcnow(),
+            #     )
+            #     self.db.add(sale)
+
+            # 5. 테스트 지급 데이터 생성 (부분 지급: 30)
+            payment = AffiliatePayment(
+                id=uuid4(),
+                affiliate_id=affiliate.id,
+                amount=Decimal("30.00"),
+                status="completed",
+                payment_method="PayPal",
+                paid_at=datetime.utcnow() - timedelta(days=15),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            self.db.add(payment)
+
+            self.commit()
+
+            return {
+                "type": "influencer",
+                "count": 1,
+                "data": {
+                    "user": user,
+                    "affiliate": affiliate,
+                },
+                "credentials": {
+                    "email": affiliate_data["email"],
+                    "password": affiliate_data["password"],
+                    "user_id": str(user.id),
+                    "affiliate_code": affiliate_data["code"],
+                },
+            }
+        except Exception as e:
+            self.db.rollback()
+            raise e
