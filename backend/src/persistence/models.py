@@ -230,6 +230,7 @@ class Shipment(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False, index=True)
     partner_id = Column(UUID(as_uuid=True), ForeignKey("fulfillment_partners.id"), nullable=False)
+    carrier = Column(String(100))  # 택배사 (LBC, 2GO, Grab Express, Lalamove)
     tracking_number = Column(String(255))
     status = Column(String(50), default="preparing", index=True)
     shipped_at = Column(DateTime)

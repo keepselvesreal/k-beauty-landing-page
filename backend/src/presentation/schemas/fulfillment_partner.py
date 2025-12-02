@@ -41,3 +41,26 @@ class FulfillmentPartnerOrdersListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ShipmentRequest(BaseModel):
+    """배송 정보 입력 요청"""
+    carrier: str  # 택배사 (LBC, 2GO, Grab Express, Lalamove)
+    tracking_number: str  # 운송장 번호
+
+    class Config:
+        from_attributes = True
+
+
+class ShipmentResponse(BaseModel):
+    """배송 정보 입력 응답"""
+    order_id: UUID
+    order_number: str
+    status: str  # "shipped"
+    carrier: str
+    tracking_number: str
+    shipped_at: datetime
+    email_status: str  # "sent" 또는 "failed"
+
+    class Config:
+        from_attributes = True

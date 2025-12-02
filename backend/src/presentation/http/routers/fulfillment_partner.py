@@ -4,15 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from src.persistence.database import get_db
-from src.persistence.models import User, FulfillmentPartner
+from src.persistence.models import User, FulfillmentPartner, Order
 from src.persistence.repositories.order_repository import OrderRepository
 from src.presentation.schemas.fulfillment_partner import (
     FulfillmentPartnerOrdersListResponse,
     FulfillmentPartnerOrderResponse,
     ProductInOrder,
+    ShipmentRequest,
+    ShipmentResponse,
 )
 from src.utils.auth import JWTTokenManager
-from src.utils.exceptions import AuthenticationError
+from src.utils.exceptions import AuthenticationError, OrderException
+from src.workflow.services.shipment_service import ShipmentService
+from src.workflow.services.email_service import EmailService
+from uuid import UUID
 
 router = APIRouter(prefix="/api/fulfillment-partner", tags=["Fulfillment Partner"])
 
@@ -172,3 +177,95 @@ async def get_fulfillment_partner_orders(
         partner_name=current_partner.name,
         orders=orders_response,
     )
+
+
+@router.patch("/orders/{order_id}/ship", response_model=ShipmentResponse)
+async def process_shipment(
+    order_id: UUID,
+    shipment_data: ShipmentRequest,
+    current_partner: FulfillmentPartner = Depends(get_current_fulfillment_partner),
+    db: Session = Depends(get_db),
+):
+    """
+    배송 정보 입력 및 발송 완료 처리
+
+    단계:
+    1. ShipmentService.process_shipment() 호출
+    2. Order 상태 업데이트 (preparing → shipped)
+    3. Shipment 레코드 생성
+    4. 배송 알림 이메일 발송
+    5. 이메일 결과 응답에 포함
+
+    Request:
+    {
+        "carrier": "LBC",
+        "tracking_number": "1234567890"
+    }
+
+    Response:
+    {
+        "order_id": "uuid",
+        "order_number": "ORD-001",
+        "status": "shipped",
+        "carrier": "LBC",
+        "tracking_number": "1234567890",
+        "shipped_at": "2025-12-02T15:45:00Z",
+        "email_status": "sent" | "failed"
+    }
+    """
+    try:
+        # 1. 배송 정보 처리 (권한 검증 포함)
+        result = ShipmentService.process_shipment(
+            db,
+            order_id=order_id,
+            partner_id=current_partner.id,
+            carrier=shipment_data.carrier,
+            tracking_number=shipment_data.tracking_number,
+        )
+
+        # 2. 주문 객체 재조회 (이메일 발송용)
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise OrderException(
+                code="ORDER_NOT_FOUND",
+                message=f"주문을 찾을 수 없습니다: {order_id}",
+            )
+
+        # 3. 배송 알림 이메일 발송
+        email_success = EmailService.send_shipment_notification(
+            db,
+            order=order,
+            carrier=shipment_data.carrier,
+            tracking_number=shipment_data.tracking_number,
+        )
+
+        # 4. 응답 반환
+        return ShipmentResponse(
+            order_id=result["order_id"],
+            order_number=result["order_number"],
+            status=result["status"],
+            carrier=result["carrier"],
+            tracking_number=result["tracking_number"],
+            shipped_at=result["shipped_at"],
+            email_status="sent" if email_success else "failed",
+        )
+
+    except AuthenticationError as e:
+        # 권한 오류 (다른 배송담당자의 주문)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+
+    except OrderException as e:
+        # 주문 오류 (없음, 유효하지 않은 입력 등)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
