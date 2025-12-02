@@ -6,7 +6,7 @@ import { Product, Review } from './types';
 export const API_BASE_URL = process.env.VITE_API_BASE_URL as string;
 
 export const PRODUCT: Product = {
-  id: 'rice-sunscreen-50ml',
+  id: 'ab3d95f7-a01d-4d54-b8fa-45ecf268c109',
   name: 'Santa Here Rice Sunscreen 50ml',
   description:
     'A moisturizing chemical sunscreen that is comfortable on the skin with SPF 50+ PA++++. Enriched with 30% Rice Extract and Grain Fermented Extracts that deeply hydrate and nourish the skin, making it perfect for sensitive skin.',

@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './i18n/config';
 
 // Google Places API 동적 로드
 function loadGooglePlacesApi() {
@@ -13,8 +14,9 @@ function loadGooglePlacesApi() {
 
   // 새로운 script 요소 생성
   const script = document.createElement('script');
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&language=en&loading=async`;
   script.async = true;
+  script.defer = true;
   document.head.appendChild(script);
 }
 

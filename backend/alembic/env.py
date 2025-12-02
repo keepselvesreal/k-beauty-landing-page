@@ -9,6 +9,7 @@ from alembic import context
 # 프로젝트 모델 임포트
 from src.persistence.database import Base
 from src.config import settings
+from src.persistence import models  # noqa: F401 - Base에 모델 등록을 위해 필요
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

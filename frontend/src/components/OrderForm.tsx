@@ -74,6 +74,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
           {
             types: ['geocode'],
             componentRestrictions: { country: 'ph' },
+            language: 'en',
           }
         );
 

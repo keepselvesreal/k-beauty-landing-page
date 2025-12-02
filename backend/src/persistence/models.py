@@ -134,6 +134,16 @@ class Order(Base):
     shipping_status = Column(String(50), default="preparing", index=True)
     shipped_at = Column(DateTime)
 
+    # 취소 요청
+    cancellation_status = Column(String(50), nullable=True)  # null, "cancel_requested", "cancelled"
+    cancellation_reason = Column(Text, nullable=True)
+    cancellation_requested_at = Column(DateTime, nullable=True)
+
+    # 환불 요청
+    refund_status = Column(String(50), nullable=True)  # null, "refund_requested", "refunded"
+    refund_reason = Column(Text, nullable=True)
+    refund_requested_at = Column(DateTime, nullable=True)
+
     # 어필리에이트
     affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), index=True)
     affiliate_commission = Column(Numeric(10, 2))

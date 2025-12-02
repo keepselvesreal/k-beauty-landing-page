@@ -68,7 +68,13 @@ async def get_order(
                 "message": f"주문을 찾을 수 없습니다: {order_number}",
             },
         )
-    return order
+
+    # customer 및 order_items 정보 포함
+    return OrderResponse(
+        **order.__dict__,
+        customer=order.customer,
+        order_items=order.order_items,
+    )
 
 
 @router.post("/{order_id}/initiate-payment")

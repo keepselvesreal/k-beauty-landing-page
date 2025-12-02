@@ -33,6 +33,19 @@ class OrderItemResponse(BaseModel):
         from_attributes = True
 
 
+class CustomerResponse(BaseModel):
+    """고객 응답 스키마"""
+    id: UUID
+    name: str
+    email: str
+    phone: Optional[str] = None
+    region: Optional[str] = None
+    address: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class OrderResponse(BaseModel):
     """주문 응답 스키마"""
     id: UUID
@@ -43,11 +56,19 @@ class OrderResponse(BaseModel):
     total_price: Decimal
     payment_status: str  # pending, paid, payment_failed, cancelled
     shipping_status: str  # preparing, shipped, delivered
+    cancellation_status: Optional[str] = None
+    refund_status: Optional[str] = None
+    cancellation_reason: Optional[str] = None
+    refund_reason: Optional[str] = None
+    cancellation_requested_at: Optional[datetime] = None
+    refund_requested_at: Optional[datetime] = None
     paypal_order_id: Optional[str] = None
     paid_at: Optional[datetime] = None
     shipped_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    customer: Optional[CustomerResponse] = None
+    order_items: Optional[list[OrderItemResponse]] = None
 
     class Config:
         from_attributes = True

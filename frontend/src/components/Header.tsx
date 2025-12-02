@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Using a reindeer SVG icon directly for "Santa Here" vibe
 const ReindeerIcon = ({ className }: { className?: string }) => (
@@ -22,19 +23,21 @@ const ReindeerIcon = ({ className }: { className?: string }) => (
 );
 
 const Header: React.FC = () => {
-  const [language, setLanguage] = useState<'Tagalog' | 'English'>('Tagalog');
+  const { i18n } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const currentLanguage = i18n.language === 'tl' ? 'TL' : 'EN';
+  const otherLanguage = i18n.language === 'tl' ? 'EN' : 'TL';
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const selectLanguage = (selectedLang: 'Tagalog' | 'English') => {
-    setLanguage(selectedLang);
+  const selectLanguage = (languageCode: 'en' | 'tl') => {
+    i18n.changeLanguage(languageCode);
+    localStorage.setItem('language', languageCode);
     setIsDropdownOpen(false);
   };
-
-  const otherLanguage = language === 'Tagalog' ? 'English' : 'Tagalog';
 
   return (
     <header className="w-full py-6 px-4 md:px-12 border-b border-gray-100 bg-white sticky top-0 z-50 flex items-center justify-between relative">
@@ -53,22 +56,38 @@ const Header: React.FC = () => {
       <div className="relative z-10 ml-auto md:ml-0">
         <button
           onClick={toggleDropdown}
-          className="flex items-center justify-between space-x-2 bg-[#C49A9A] text-white px-4 py-2 rounded-full hover:bg-[#b08585] transition-colors text-sm font-medium w-32 shadow-sm"
+          className="flex items-center justify-between space-x-2 bg-[#C49A9A] text-white px-4 py-2 rounded-full hover:bg-[#b08585] transition-colors text-sm font-medium shadow-sm"
         >
-          <span className="flex-1 text-center">{language}</span>
+          <span>{currentLanguage}</span>
+          <span className="text-white">/</span>
+          <span className="text-white/70">{otherLanguage}</span>
           <ChevronDown
-            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ml-2 ${isDropdownOpen ? 'rotate-180' : ''}`}
           />
         </button>
 
         {/* Language Dropdown */}
         {isDropdownOpen && (
-          <div className="absolute top-full right-0 mt-2 w-32 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-1 duration-200">
+          <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-1 duration-200">
             <button
-              onClick={() => selectLanguage(otherLanguage)}
-              className="w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-[#F9F5F2] hover:text-[#C49A9A] transition-colors text-center font-medium"
+              onClick={() => selectLanguage('en')}
+              className={`w-full px-4 py-2.5 text-sm transition-colors text-center font-medium ${
+                i18n.language === 'en'
+                  ? 'bg-[#F9F5F2] text-[#C49A9A]'
+                  : 'text-gray-700 hover:bg-[#F9F5F2] hover:text-[#C49A9A]'
+              }`}
             >
-              {otherLanguage}
+              EN
+            </button>
+            <button
+              onClick={() => selectLanguage('tl')}
+              className={`w-full px-4 py-2.5 text-sm transition-colors text-center font-medium ${
+                i18n.language === 'tl'
+                  ? 'bg-[#F9F5F2] text-[#C49A9A]'
+                  : 'text-gray-700 hover:bg-[#F9F5F2] hover:text-[#C49A9A]'
+              }`}
+            >
+              TL
             </button>
           </div>
         )}
