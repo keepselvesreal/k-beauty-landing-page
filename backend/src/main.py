@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
-from src.presentation.http.routers import admin, auth, customers, orders, shipping, fulfillment_partner
+from src.presentation.http.routers import admin, auth, customers, orders, shipping, fulfillment_partner, influencer
 
 # from src.persistence.database import engine, Base
 
@@ -35,6 +35,7 @@ app.include_router(shipping.router)
 app.include_router(customers.router)
 app.include_router(orders.router)
 app.include_router(fulfillment_partner.router)
+app.include_router(influencer.router)
 
 
 @app.get("/health")

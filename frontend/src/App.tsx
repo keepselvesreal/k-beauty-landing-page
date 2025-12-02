@@ -7,6 +7,7 @@ import OrderConfirmation from './components/OrderConfirmation';
 import AdminPanel from './components/AdminPanel';
 import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
+import InfluencerDashboard from './components/InfluencerDashboard';
 import { api, CurrentUser } from './utils/api';
 
 const App: React.FC = () => {
@@ -70,12 +71,7 @@ const App: React.FC = () => {
             currentUser.role === 'fulfillment-partner' ? (
               <FulfillmentPartnerDashboard />
             ) : currentUser.role === 'influencer' ? (
-              <div className="flex items-center justify-center h-screen">
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold mb-4">인플루언서 대시보드</h1>
-                  <p className="text-gray-600">인플루언서 대시보드 개발 중입니다.</p>
-                </div>
-              </div>
+              <InfluencerDashboard />
             ) : (
               <div className="flex items-center justify-center h-screen">
                 <div className="text-center">

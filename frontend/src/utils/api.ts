@@ -8,6 +8,25 @@ export interface CurrentUser {
   role: string;
 }
 
+export interface InfluencerDashboard {
+  affiliate_code: string;
+  affiliate_url: string;
+  total_clicks: number;
+  total_sales: number;
+  cumulative_revenue: number;
+  pending_commission: number;
+  next_payment_date: string;
+}
+
+export interface InfluencerInquiryRequest {
+  message: string;
+}
+
+export interface InfluencerInquiryResponse {
+  status: string;
+  message: string;
+}
+
 export const api = {
   // 배송담당자 로그인 (토큰을 메모리에만 저장, 실제로는 HttpOnly 쿠키로 반환됨)
   async loginFulfillmentPartner(email: string, password: string, role: string = 'fulfillment-partner') {
@@ -108,6 +127,62 @@ export const api = {
       }
       const error = await response.json();
       throw new Error(error.detail?.message || 'Failed to process shipment');
+    }
+
+    return await response.json();
+  },
+
+  // 인플루언서 대시보드 조회
+  async getInfluencerDashboard(): Promise<InfluencerDashboard> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/influencer/dashboard`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to fetch dashboard');
+    }
+
+    return await response.json();
+  },
+
+  // 인플루언서 문의 발송
+  async sendInfluencerInquiry(message: string): Promise<InfluencerInquiryResponse> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/influencer/inquiry`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ message }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to send inquiry');
     }
 
     return await response.json();

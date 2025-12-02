@@ -39,6 +39,10 @@ class Settings(PydanticBaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
 
+    # Affiliate
+    AFFILIATE_PAYMENT_DAYS: int = 30  # 지급 예정 날짜 계산 (일 단위)
+    ADMIN_EMAIL: str = "admin@example.com"  # 관리자 이메일
+
     class Config:
         env_file = ".env"
         case_sensitive = True
