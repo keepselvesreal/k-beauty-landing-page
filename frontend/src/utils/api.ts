@@ -1,4 +1,4 @@
-import { FulfillmentPartnerOrdersResponse } from '../types';
+import { FulfillmentPartnerOrdersResponse, ShipmentRequest, ShipmentResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -79,6 +79,35 @@ export const api = {
       }
       const error = await response.json();
       throw new Error(error.detail?.message || 'Failed to fetch orders');
+    }
+
+    return await response.json();
+  },
+
+  // 배송 정보 입력 (배송담당자)
+  async processShipment(orderId: string, shipmentData: ShipmentRequest): Promise<ShipmentResponse> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/fulfillment-partner/orders/${orderId}/ship`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(shipmentData),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to process shipment');
     }
 
     return await response.json();

@@ -87,3 +87,18 @@ export interface FulfillmentPartnerOrdersResponse {
   partner_name: string;
   orders: FulfillmentPartnerOrder[];
 }
+
+export interface ShipmentRequest {
+  carrier: string;
+  tracking_number: string;
+}
+
+export interface ShipmentResponse {
+  order_id: string;
+  order_number: string;
+  status: string;
+  carrier: string;
+  tracking_number: string;
+  shipped_at: string;
+  email_status: string;
+}

@@ -1,12 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { FulfillmentPartnerOrdersResponse, FulfillmentPartnerOrder } from '../types';
 import { api } from '../utils/api';
+import ShipmentForm from './ShipmentForm';
+import Toast from './Toast';
 import './FulfillmentPartnerDashboard.css';
 
 const FulfillmentPartnerDashboard: React.FC = () => {
   const [data, setData] = useState<FulfillmentPartnerOrdersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<FulfillmentPartnerOrder | null>(null);
+  const [isShipmentFormOpen, setIsShipmentFormOpen] = useState(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -29,6 +34,32 @@ const FulfillmentPartnerDashboard: React.FC = () => {
   const handleLogout = () => {
     api.logout();
     window.location.href = '/';
+  };
+
+  const handleOpenShipmentForm = (order: FulfillmentPartnerOrder) => {
+    setSelectedOrder(order);
+    setIsShipmentFormOpen(true);
+  };
+
+  const handleCloseShipmentForm = () => {
+    setIsShipmentFormOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleShipmentSuccess = () => {
+    setToast({
+      type: 'success',
+      message: '배송 정보가 등록되었으며 고객에게 이메일이 발송되었습니다.',
+    });
+    // 주문 목록 새로고침
+    loadOrders();
+  };
+
+  const handleShipmentError = (message: string) => {
+    setToast({
+      type: 'error',
+      message: `배송 정보 등록에 실패했습니다: ${message}`,
+    });
   };
 
   if (loading) {
@@ -80,17 +111,44 @@ const FulfillmentPartnerDashboard: React.FC = () => {
           ) : (
             <div className="orders-grid">
               {data?.orders.map((order) => (
-                <OrderCard key={order.order_id} order={order} />
+                <OrderCard
+                  key={order.order_id}
+                  order={order}
+                  onShipmentClick={handleOpenShipmentForm}
+                />
               ))}
             </div>
           )}
         </section>
       </div>
+
+      {selectedOrder && (
+        <ShipmentForm
+          order={selectedOrder}
+          isOpen={isShipmentFormOpen}
+          onClose={handleCloseShipmentForm}
+          onSuccess={handleShipmentSuccess}
+          onError={handleShipmentError}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };
 
-const OrderCard: React.FC<{ order: FulfillmentPartnerOrder }> = ({ order }) => {
+interface OrderCardProps {
+  order: FulfillmentPartnerOrder;
+  onShipmentClick: (order: FulfillmentPartnerOrder) => void;
+}
+
+const OrderCard: React.FC<OrderCardProps> = ({ order, onShipmentClick }) => {
   const createdDate = new Date(order.created_at).toLocaleDateString('ko-KR', {
     month: 'short',
     day: 'numeric',
@@ -138,7 +196,9 @@ const OrderCard: React.FC<{ order: FulfillmentPartnerOrder }> = ({ order }) => {
           <strong>총액:</strong>
           <span>${parseFloat(String(order.total_price)).toFixed(2)}</span>
         </div>
-        <button className="ship-btn">배송 정보 입력</button>
+        <button className="ship-btn" onClick={() => onShipmentClick(order)}>
+          배송 정보 입력
+        </button>
       </div>
     </div>
   );
