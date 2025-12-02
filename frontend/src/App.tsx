@@ -8,6 +8,7 @@ import AdminPanel from './components/AdminPanel';
 import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
 import InfluencerDashboard from './components/InfluencerDashboard';
+import ChangePassword from './components/ChangePassword';
 import { api, CurrentUser } from './utils/api';
 
 const App: React.FC = () => {
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const isAdminPage = currentPath === '/admin';
   const isLoginPage = currentPath === '/auth/login';
   const isDashboardPage = currentPath === '/dashboard';
+  const isSettingsPage = currentPath === '/settings';
 
   const orderNumber = isOrderConfirmationPage
     ? currentPath.split('/order-confirmation/')[1]
@@ -58,10 +60,18 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {!isAdminPage && !isLoginPage && !isDashboardPage && <Header />}
+      {!isAdminPage && !isLoginPage && !isDashboardPage && !isSettingsPage && <Header />}
       <main>
         {isLoginPage ? (
           <FulfillmentPartnerLogin onLoginSuccess={handleLoginSuccess} />
+        ) : isSettingsPage && isLoggedIn ? (
+          userLoading ? (
+            <div className="flex items-center justify-center h-screen">
+              <div className="text-lg">로드 중...</div>
+            </div>
+          ) : (
+            <ChangePassword />
+          )
         ) : isDashboardPage && isLoggedIn ? (
           userLoading ? (
             <div className="flex items-center justify-center h-screen">
@@ -98,7 +108,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {!isAdminPage && !isLoginPage && !isDashboardPage && (
+      {!isAdminPage && !isLoginPage && !isDashboardPage && !isSettingsPage && (
         <footer className="py-8 text-center text-gray-400 text-sm border-t border-gray-100 mt-12">
           <p>&copy; {new Date().getFullYear()} Santa Here. All rights reserved.</p>
         </footer>

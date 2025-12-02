@@ -9,7 +9,7 @@ from ....persistence.models import User
 from ....workflow.services.authentication_service import AuthenticationService
 from ....utils.auth import JWTTokenManager
 from ....utils.exceptions import AuthenticationError
-from ...schemas.auth import LoginRequest, TokenResponse
+from ...schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest, ChangePasswordResponse
 
 router = APIRouter(prefix="/api/auth/fulfillment-partner", tags=["Authentication"])
 
@@ -171,3 +171,63 @@ async def get_current_user_info(
         "email": payload.get("email"),
         "role": role,
     }
+
+
+@router.post("/change-password", response_model=ChangePasswordResponse)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    비밀번호 변경 (모든 역할 지원)
+
+    Request:
+    {
+        "current_password": "oldPassword123",
+        "new_password": "newPassword456"
+    }
+
+    Response:
+    {
+        "message": "비밀번호가 성공적으로 변경되었습니다"
+    }
+    """
+    try:
+        # 현재 비밀번호 검증
+        is_valid = AuthenticationService.verify_password(
+            request.current_password,
+            current_user.password_hash,
+        )
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": "INVALID_PASSWORD",
+                    "message": "현재 비밀번호가 올바르지 않습니다.",
+                },
+            )
+
+        # 새 비밀번호로 업데이트
+        current_user.password_hash = AuthenticationService.hash_password(
+            request.new_password
+        )
+        db.commit()
+
+        return {
+            "message": "비밀번호가 성공적으로 변경되었습니다"
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}",
+            },
+        )
