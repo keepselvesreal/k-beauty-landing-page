@@ -3,6 +3,7 @@
 import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from src.persistence.models import (
@@ -12,6 +13,7 @@ from src.persistence.models import (
     Customer,
     Order,
     ShippingRate,
+    User,
 )
 
 
@@ -88,7 +90,20 @@ def inactive_partner(test_db: Session):
 @pytest.fixture
 def affiliate_active(test_db: Session):
     """활성화된 Affiliate"""
+    # User 먼저 생성
+    user = User(
+        email="active@affiliate.example.com",
+        password_hash="hashed_password",
+        role="influencer",
+        is_active=True,
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+
+    # Affiliate 생성
     affiliate = Affiliate(
+        user_id=user.id,
         code="aff-active-1234",
         name="Active Affiliate Partner",
         email="active@affiliate.example.com",
@@ -103,7 +118,20 @@ def affiliate_active(test_db: Session):
 @pytest.fixture
 def affiliate_inactive(test_db: Session):
     """비활성화된 Affiliate"""
+    # User 먼저 생성
+    user = User(
+        email="inactive@affiliate.example.com",
+        password_hash="hashed_password",
+        role="influencer",
+        is_active=True,
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+
+    # Affiliate 생성
     affiliate = Affiliate(
+        user_id=user.id,
         code="aff-inactive-5678",
         name="Inactive Affiliate Partner",
         email="inactive@affiliate.example.com",

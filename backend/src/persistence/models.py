@@ -37,6 +37,7 @@ class User(Base):
 
     # 관계
     fulfillment_partner = relationship("FulfillmentPartner", back_populates="user", uselist=False)
+    affiliate = relationship("Affiliate", back_populates="user", uselist=False)
 
 
 # ============================================
@@ -300,6 +301,7 @@ class Affiliate(Base):
     __tablename__ = "affiliates"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), unique=True, nullable=False, index=True)
     code = Column(String(100), unique=True, nullable=False, index=True)
     name = Column(String(255))
     email = Column(String(255), unique=True)
@@ -308,8 +310,11 @@ class Affiliate(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 관계
+    user = relationship("User", back_populates="affiliate")
     sales = relationship("AffiliateSale", back_populates="affiliate")
     error_logs = relationship("AffiliateErrorLog", back_populates="affiliate")
+    clicks = relationship("AffiliateClick", back_populates="affiliate")
+    payments = relationship("AffiliatePayment", back_populates="affiliate")
 
 
 # ============================================
@@ -332,7 +337,40 @@ class AffiliateErrorLog(Base):
 
 
 # ============================================
-# 15. Settings (시스템 설정)
+# 15. Affiliate Clicks (어필리에이트 클릭 추적)
+# ============================================
+class AffiliateClick(Base):
+    __tablename__ = "affiliate_clicks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), nullable=False, index=True)
+    clicked_at = Column(DateTime, default=datetime.utcnow)
+
+    # 관계
+    affiliate = relationship("Affiliate", back_populates="clicks")
+
+
+# ============================================
+# 16. Affiliate Payments (어필리에이트 지급 기록)
+# ============================================
+class AffiliatePayment(Base):
+    __tablename__ = "affiliate_payments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), nullable=False, index=True)
+    amount = Column(Numeric(10, 2), nullable=False)
+    status = Column(String(50), nullable=False, default="pending")  # pending, completed, failed
+    paid_at = Column(DateTime)
+    payment_method = Column(String(100))  # PayPal, 은행이체 등
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 관계
+    affiliate = relationship("Affiliate", back_populates="payments")
+
+
+# ============================================
+# 17. Settings (시스템 설정)
 # ============================================
 class Settings(Base):
     __tablename__ = "settings"
