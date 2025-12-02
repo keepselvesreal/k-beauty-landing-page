@@ -279,10 +279,19 @@ const OrderForm: React.FC<OrderFormProps> = ({
       console.log('PayPal 승인 URL:', approvalUrl);
 
       // ============================================
-      // 4단계: PayPal 리다이렉션
+      // 4단계: 이메일 localStorage 저장
+      // ============================================
+      // 결제 완료 후 주문 확인 페이지에서 자동으로 인증할 수 있도록 저장
+      localStorage.setItem('customer_email', formState.email);
+
+      // eslint-disable-next-line no-console
+      console.log('4단계: 고객 이메일 저장됨');
+
+      // ============================================
+      // 5단계: PayPal 리다이렉션
       // ============================================
       // eslint-disable-next-line no-console
-      console.log('4단계: PayPal로 리다이렉션 중...');
+      console.log('5단계: PayPal로 리다이렉션 중...');
 
       // 사용자를 PayPal 승인 페이지로 리다이렉션
       onNavigate(approvalUrl);

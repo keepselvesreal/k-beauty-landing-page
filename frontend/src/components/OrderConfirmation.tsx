@@ -19,28 +19,59 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'cancel' | 'refund'>('cancel');
   const [submitting, setSubmitting] = useState(false);
+  const [email, setEmail] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    fetchOrder();
+    // localStorage에서 이메일 읽기 (결제 직후)
+    const savedEmail = localStorage.getItem('customer_email');
+
+    if (savedEmail) {
+      // 이메일이 저장되어 있으면 자동으로 인증
+      setEmail(savedEmail);
+      fetchOrderWithEmail(savedEmail);
+    } else {
+      // 이메일이 없으면 입력 대기
+      setLoading(false);
+    }
   }, [orderNumber]);
 
-  const fetchOrder = async () => {
+  const fetchOrderWithEmail = async (emailToUse: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/orders/${orderNumber}`);
+      setError(null);
+      const response = await fetch(
+        `${API_BASE_URL}/api/orders/${orderNumber}?email=${encodeURIComponent(emailToUse)}`
+      );
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Email does not match the order');
+        }
         throw new Error('Failed to fetch order');
       }
 
       const data = await response.json();
       setOrder(data);
       setCustomer(data.customer);
+      setIsAuthenticated(true);
+
+      // 인증 성공 후 localStorage 삭제
+      localStorage.removeItem('customer_email');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEmailVerify = async () => {
+    if (!email.trim()) {
+      setError('Please enter an email');
+      return;
+    }
+    await fetchOrderWithEmail(email);
   };
 
   const openModal = (type: 'cancel' | 'refund') => {
@@ -53,7 +84,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
   };
 
   const handleModalSubmit = async (reason: string) => {
-    if (!order) return;
+    if (!order || !customer) return;
 
     try {
       setSubmitting(true);
@@ -78,7 +109,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
       }
 
       // 성공 시 주문 정보 새로고침
-      await fetchOrder();
+      await fetchOrderWithEmail(customer.email);
       closeModal();
     } catch (err) {
       throw err instanceof Error ? err : new Error('An error occurred');
@@ -154,7 +185,68 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
     );
   }
 
-  if (error || !order || !customer) {
+  // 이메일 인증이 안 된 상태
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-white py-12 px-4">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">{t('orderConfirmation')}</h1>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-8">
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('email')}
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="your@email.com"
+                  className={`
+                    w-full px-4 py-3 border rounded-md focus:outline-none transition-all
+                    ${
+                      error
+                        ? 'border-red-400 bg-red-50 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                        : 'border-gray-300 focus:border-[#C49A9A] focus:ring-1 focus:ring-[#C49A9A]'
+                    }
+                  `}
+                />
+                {error && (
+                  <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
+                    <span>⚠️</span>
+                    {error}
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={handleEmailVerify}
+                disabled={loading}
+                className={`
+                  w-full px-4 py-3 rounded-md font-medium transition-colors
+                  ${
+                    loading
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-[#C49A9A] text-white hover:bg-[#b08585]'
+                  }
+                `}
+              >
+                {loading ? '...' : t('submitRequest')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!order || !customer) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-red-600">{error || 'Order not found'}</p>

@@ -41,3 +41,12 @@ class OrderException(BusinessError):
         self.code = code
         self.message = message
         super().__init__(message)
+
+
+class EmailAuthenticationError(BusinessError):
+    """이메일 인증 실패 에러"""
+
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(message)

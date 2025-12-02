@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from src.persistence.database import get_db
 from src.presentation.schemas.orders import CancellationRefundRequest, OrderCreate, OrderResponse
-from src.utils.exceptions import OrderException
+from src.utils.exceptions import OrderException, EmailAuthenticationError
 from src.workflow.services.order_service import OrderService
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -54,9 +54,23 @@ async def create_order(
 @router.get("/{order_number}", response_model=OrderResponse)
 async def get_order(
     order_number: str,
+    email: str = None,
     db: Session = Depends(get_db),
 ):
-    """주문 조회"""
+    """
+    주문 조회
+
+    Args:
+        order_number: 주문 번호
+        email: 이메일 (선택사항, 제공되면 검증)
+
+    Returns:
+        주문 정보
+
+    Raises:
+        404: 주문을 찾을 수 없음
+        401: 이메일이 일치하지 않음
+    """
     from src.persistence.repositories.order_repository import OrderRepository
 
     order = OrderRepository.get_order_by_number(db, order_number)
@@ -68,6 +82,23 @@ async def get_order(
                 "message": f"주문을 찾을 수 없습니다: {order_number}",
             },
         )
+
+    # 이메일이 제공된 경우 검증
+    if email:
+        try:
+            if order.customer.email != email:
+                raise EmailAuthenticationError(
+                    code="EMAIL_MISMATCH",
+                    message="이메일이 일치하지 않습니다.",
+                )
+        except EmailAuthenticationError as e:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "code": e.code,
+                    "message": e.message,
+                },
+            )
 
     # customer 및 order_items 정보 포함
     return OrderResponse(

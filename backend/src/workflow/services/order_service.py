@@ -131,20 +131,26 @@ class OrderService:
             OrderException: 주문 없음
             PaymentProcessingError: PayPal 결제 실패
         """
+        from src.config import settings
+
         # 1. 주문 확인
         order = OrderRepository.get_order_by_id(db, order_id)
         if not order:
             raise OrderException(code="ORDER_NOT_FOUND", message="주문을 찾을 수 없습니다.")
 
         try:
-            # 2. PayPal Order 생성
+            # 2. PayPal 리다이렉트 URL 생성
+            return_url = f"{settings.FRONTEND_BASE_URL}/order-confirmation?order_number={order.order_number}"
+
+            # 3. PayPal Order 생성
             payment_result = PaymentService.create_paypal_order(
                 amount=order.total_price,
                 currency="PHP",
                 description=f"Order {order.order_number}",
+                return_url=return_url,
             )
 
-            # 3. PayPal Order ID 저장
+            # 4. PayPal Order ID 저장
             OrderRepository.update_order_payment_info(
                 db,
                 order_id=order_id,
