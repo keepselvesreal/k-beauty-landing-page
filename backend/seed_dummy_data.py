@@ -1,10 +1,16 @@
-"""더미 데이터 입력 스크립트 (상품, 배송담당자, 재고, 배송료)"""
+"""더미 데이터 입력 스크립트 (상품, 배송담당자, 재고, 배송료, 고객, 주문)"""
 
 import json
 from pathlib import Path
+from datetime import datetime
+from uuid import uuid4
+from decimal import Decimal
 
 from src.persistence.database import SessionLocal
-from src.persistence.models import Product, FulfillmentPartner, PartnerAllocatedInventory, ShippingRate
+from src.persistence.models import (
+    Product, FulfillmentPartner, PartnerAllocatedInventory, ShippingRate,
+    Customer, Order, OrderItem
+)
 
 
 def seed_dummy_data():
@@ -104,7 +110,82 @@ def seed_dummy_data():
 
         db.commit()
 
-        # 7. 생성 완료 메시지
+        # 7. 고객 생성
+        customers_data = [
+            {
+                "email": "test.customer@example.com",
+                "name": "테스트 고객",
+                "phone": "09123456789",
+                "address": "Manila, Philippines",
+                "region": "NCR",
+            },
+            {
+                "email": "john.doe@example.com",
+                "name": "John Doe",
+                "phone": "09234567890",
+                "address": "Quezon City, Philippines",
+                "region": "NCR",
+            },
+            {
+                "email": "jane.smith@example.com",
+                "name": "Jane Smith",
+                "phone": "09345678901",
+                "address": "Cebu City, Philippines",
+                "region": "Visayas",
+            },
+        ]
+        created_customers = []
+        for cust_data in customers_data:
+            customer = Customer(
+                email=cust_data["email"],
+                name=cust_data["name"],
+                phone=cust_data["phone"],
+                address=cust_data["address"],
+                region=cust_data["region"],
+            )
+            db.add(customer)
+            created_customers.append(customer)
+
+        db.commit()
+
+        # 8. 샘플 주문 생성
+        # 첫 번째 고객으로 주문 생성
+        test_customer = created_customers[0]
+        ncr_partner = created_partners['NCR Fulfillment Hub']
+        product = list(created_products.values())[0]
+
+        order = Order(
+            id=uuid4(),
+            order_number=f"ORD-{uuid4()}",
+            customer_id=test_customer.id,
+            fulfillment_partner_id=ncr_partner.id,
+            subtotal=Decimal("750.00"),  # 1 * 750
+            shipping_fee=Decimal("100.00"),  # NCR 배송료
+            total_price=Decimal("850.00"),  # 750 + 100
+            payment_status="paid",
+            shipping_status="preparing",
+            paypal_order_id="SAMPLE-PAYPAL-ORDER-001",
+            paypal_capture_id="SAMPLE-PAYPAL-CAPTURE-001",
+            paypal_fee=Decimal("25.50"),  # 3.4% 예상 수수료
+            profit=Decimal("644.50"),  # 750 - 100 (배송료) - 25.50 (PayPal) - 80 (기본 이익)
+            paid_at=datetime.now(),
+        )
+        db.add(order)
+        db.flush()
+
+        # OrderItem 생성
+        order_item = OrderItem(
+            id=uuid4(),
+            order_id=order.id,
+            product_id=product.id,
+            quantity=1,
+            unit_price=Decimal("750.00"),
+        )
+        db.add(order_item)
+
+        db.commit()
+
+        # 9. 생성 완료 메시지
         print("✅ 모든 더미 데이터가 생성되었습니다!\n")
 
         print("📦 상품 정보:")
@@ -129,7 +210,26 @@ def seed_dummy_data():
         for sr_data in shipping_rates_data:
             print(f"  • {sr_data['region']}: ₱{sr_data['fee']}")
 
-        # 8. 프런트엔드 설정 정보
+        print(f"\n👥 생성된 고객 ({len(created_customers)}명):")
+        for customer in created_customers:
+            print(f"  • {customer.name}")
+            print(f"    Email: {customer.email}")
+            print(f"    Phone: {customer.phone}")
+            print(f"    Region: {customer.region}")
+            print(f"    ID: {customer.id}\n")
+
+        print(f"\n📦 생성된 주문 (1개):")
+        print(f"  • {order.order_number}")
+        print(f"    고객: {test_customer.name} ({test_customer.email})")
+        print(f"    상품: {product.name} (수량: 1)")
+        print(f"    상품가: ₱{order.subtotal}")
+        print(f"    배송료: ₱{order.shipping_fee}")
+        print(f"    총액: ₱{order.total_price}")
+        print(f"    결제상태: {order.payment_status}")
+        print(f"    배송상태: {order.shipping_status}")
+        print(f"    주문ID: {order.id}\n")
+
+        # 10. 프런트엔드 설정 정보
         print("\n" + "=" * 60)
         print("📋 프런트엔드 constants.ts에 다음 UUID를 사용하세요:")
         print("=" * 60)

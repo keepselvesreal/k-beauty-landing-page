@@ -101,11 +101,7 @@ async def get_order(
             )
 
     # customer 및 order_items 정보 포함
-    return OrderResponse(
-        **order.__dict__,
-        customer=order.customer,
-        order_items=order.order_items,
-    )
+    return OrderResponse.model_validate(order)
 
 
 @router.post("/{order_id}/initiate-payment")
@@ -180,11 +176,7 @@ async def request_cancellation(
             order_number=order_number,
             reason=request_data.reason,
         )
-        return OrderResponse(
-            **result["order"].__dict__,
-            customer=result["order"].customer,
-            order_items=result["order"].order_items,
-        )
+        return OrderResponse.model_validate(result["order"])
     except OrderException as e:
         raise HTTPException(
             status_code=400,
@@ -222,11 +214,7 @@ async def request_refund(
             order_number=order_number,
             reason=request_data.reason,
         )
-        return OrderResponse(
-            **result["order"].__dict__,
-            customer=result["order"].customer,
-            order_items=result["order"].order_items,
-        )
+        return OrderResponse.model_validate(result["order"])
     except OrderException as e:
         raise HTTPException(
             status_code=400,

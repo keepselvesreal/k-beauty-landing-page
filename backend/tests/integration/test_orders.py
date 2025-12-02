@@ -167,3 +167,73 @@ class TestGetOrder:
         assert response.status_code == 404
         result = response.json()
         assert result["detail"]["code"] == "ORDER_NOT_FOUND"
+
+    def test_get_order_with_email_match(self, client: TestClient, complete_test_data):
+        """TC-4.2.1: 이메일 검증 (일치) - Happy Path"""
+        data = complete_test_data
+
+        # ========== GIVEN ==========
+        # 주문 생성
+        create_response = client.post(
+            "/api/orders",
+            json={
+                "customer_id": str(data["customer"].id),
+                "product_id": str(data["product"].id),
+                "quantity": 5,
+                "region": "NCR",
+            },
+        )
+        assert create_response.status_code == 200
+        order_number = create_response.json()["order_number"]
+        # DB의 고객 이메일: "test.customer@example.com"
+
+        # ========== WHEN ==========
+        # 올바른 이메일로 GET /api/orders/{order_number}?email=... 호출
+        get_response = client.get(
+            f"/api/orders/{order_number}?email={data['customer'].email}"
+        )
+
+        # ========== THEN ==========
+        # 이메일 일치
+        assert get_response.status_code == 200
+        result = get_response.json()
+        assert result["order_number"] == order_number
+        assert result["customer"]["email"] == data["customer"].email
+        # 주문 정보 반환
+        assert result["payment_status"] == "pending"
+        assert result["shipping_status"] == "preparing"
+
+    def test_get_order_with_email_mismatch(self, client: TestClient, complete_test_data):
+        """TC-4.3.1: 이메일 검증 (불일치) - Error Case"""
+        data = complete_test_data
+
+        # ========== GIVEN ==========
+        # 주문 생성
+        create_response = client.post(
+            "/api/orders",
+            json={
+                "customer_id": str(data["customer"].id),
+                "product_id": str(data["product"].id),
+                "quantity": 5,
+                "region": "NCR",
+            },
+        )
+        assert create_response.status_code == 200
+        order_number = create_response.json()["order_number"]
+        # DB의 고객 이메일: "test.customer@example.com"
+
+        # ========== WHEN ==========
+        # 잘못된 이메일로 GET /api/orders/{order_number}?email=... 호출
+        get_response = client.get(
+            f"/api/orders/{order_number}?email=wrong@example.com"
+        )
+
+        # ========== THEN ==========
+        # 이메일 불일치
+        assert get_response.status_code == 401
+        result = get_response.json()
+        # 401 Unauthorized 응답
+        assert result["detail"]["code"] == "EMAIL_MISMATCH"
+        # Error Code: "EMAIL_MISMATCH"
+        assert result["detail"]["message"] == "이메일이 일치하지 않습니다."
+        # Message: "이메일이 일치하지 않습니다."

@@ -21,6 +21,8 @@
   "total": "Kabuuan",
   "cancellationStatus": "Status ng Pagkansela",
   "refundStatus": "Status ng Pagbabalik ng Pera",
+  "cancelRequest": "Humingi ng Pagkansela",
+  "refundRequest": "Humingi ng Pagbabalik ng Pera",
   "noRequest": "Walang kahilingan",
   "requested": "Hiniling na",
   "approved": "Aprubado",
