@@ -36,6 +36,9 @@ class OrderItemResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }
 
 
 class CustomerResponse(BaseModel):
@@ -77,3 +80,6 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }

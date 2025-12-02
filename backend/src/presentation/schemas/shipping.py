@@ -12,6 +12,9 @@ class ShippingRateResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }
 
 
 class ShippingRateUpdate(BaseModel):

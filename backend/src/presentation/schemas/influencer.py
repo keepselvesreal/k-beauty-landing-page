@@ -20,6 +20,9 @@ class InfluencerDashboardResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }
 
 
 class AffiliateClickRequest(BaseModel):

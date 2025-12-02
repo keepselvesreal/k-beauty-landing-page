@@ -16,6 +16,9 @@ class ProductInOrder(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }
 
 
 class FulfillmentPartnerOrderResponse(BaseModel):
@@ -31,6 +34,9 @@ class FulfillmentPartnerOrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        json_encoders = {
+            Decimal: lambda v: float(v)
+        }
 
 
 class FulfillmentPartnerOrdersListResponse(BaseModel):

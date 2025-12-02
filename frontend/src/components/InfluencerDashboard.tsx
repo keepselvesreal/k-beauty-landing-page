@@ -107,9 +107,6 @@ const InfluencerDashboard: React.FC = () => {
           )}
         </div>
         <div className="header-buttons">
-          <button className="nav-btn" onClick={() => window.location.href = '/dashboard'}>
-            배송 관리
-          </button>
           <button className="nav-btn" onClick={() => window.location.href = '/settings'}>
             비밀번호 변경
           </button>
