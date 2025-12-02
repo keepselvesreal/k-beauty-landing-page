@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Copy, CheckCircle } from 'lucide-react';
 import { Order, Customer } from '../types';
 import { API_BASE_URL, PRODUCT } from '../constants';
+import RequestModal from './RequestModal';
 
 interface OrderConfirmationProps {
   orderNumber: string;
@@ -15,6 +16,9 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'cancel' | 'refund'>('cancel');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchOrder();
@@ -36,6 +40,50 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openModal = (type: 'cancel' | 'refund') => {
+    setModalType(type);
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+  };
+
+  const handleModalSubmit = async (reason: string) => {
+    if (!order) return;
+
+    try {
+      setSubmitting(true);
+      const endpoint = modalType === 'cancel'
+        ? `cancel-request`
+        : `refund-request`;
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/orders/${order.order_number}/${endpoint}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reason }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail?.message || `Failed to submit ${modalType} request`);
+      }
+
+      // 성공 시 주문 정보 새로고침
+      await fetchOrder();
+      closeModal();
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('An error occurred');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -170,6 +218,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
               {/* Cancel Request Button */}
               <div>
                 <button
+                  onClick={() => openModal('cancel')}
                   className={`w-full px-4 py-2 rounded-md transition-colors text-sm font-medium ${
                     order.shipping_status === 'shipped' ||
                     order.shipping_status === 'delivered' ||
@@ -208,6 +257,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
               {/* Refund Request Button */}
               <div>
                 <button
+                  onClick={() => openModal('refund')}
                   className={`w-full px-4 py-2 rounded-md transition-colors text-sm font-medium ${
                     order.shipping_status !== 'delivered' ||
                     order.refund_status === 'refund_requested' ||
@@ -332,6 +382,15 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ orderNumber }) =>
         </div>
 
       </div>
+
+      {/* Request Modal */}
+      <RequestModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        onSubmit={handleModalSubmit}
+        type={modalType}
+        isLoading={submitting}
+      />
     </div>
   );
 };

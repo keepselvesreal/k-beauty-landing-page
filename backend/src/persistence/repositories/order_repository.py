@@ -1,5 +1,6 @@
 """주문 관련 데이터 접근 계층"""
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -112,6 +113,40 @@ class OrderRepository:
         order = db.query(Order).filter(Order.id == order_id).first()
         if order:
             order.paypal_order_id = paypal_order_id
+            db.commit()
+            db.refresh(order)
+        return order
+
+    @staticmethod
+    def update_cancellation_status(
+        db: Session,
+        order_id: UUID,
+        status: str,
+        reason: str = None,
+    ) -> Order:
+        """주문 취소 상태 업데이트"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.cancellation_status = status
+            order.cancellation_reason = reason
+            order.cancellation_requested_at = datetime.utcnow()
+            db.commit()
+            db.refresh(order)
+        return order
+
+    @staticmethod
+    def update_refund_status(
+        db: Session,
+        order_id: UUID,
+        status: str,
+        reason: str = None,
+    ) -> Order:
+        """주문 환불 상태 업데이트"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.refund_status = status
+            order.refund_reason = reason
+            order.refund_requested_at = datetime.utcnow()
             db.commit()
             db.refresh(order)
         return order

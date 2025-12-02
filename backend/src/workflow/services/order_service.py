@@ -161,3 +161,109 @@ class OrderService:
             # 결제 생성 실패 → 주문 상태를 payment_failed로 업데이트
             OrderRepository.update_order_status(db, order_id, "payment_failed")
             raise
+
+    @staticmethod
+    def request_cancellation(
+        db: Session,
+        order_number: str,
+        reason: str,
+    ) -> dict:
+        """
+        주문 취소 요청
+
+        조건:
+        - shipping_status가 'shipped' 또는 'delivered'가 아니어야 함
+        - cancellation_status가 'cancel_requested' 또는 'cancelled'가 아니어야 함
+
+        Args:
+            db: 데이터베이스 세션
+            order_number: 주문 번호
+            reason: 취소 사유
+
+        Returns:
+            {"order": Order}
+
+        Raises:
+            OrderException: 주문 없음, 상태 불가 등
+        """
+        # 1. 주문 확인
+        order = OrderRepository.get_order_by_number(db, order_number)
+        if not order:
+            raise OrderException(code="ORDER_NOT_FOUND", message="주문을 찾을 수 없습니다.")
+
+        # 2. 취소 가능 상태 검증
+        if order.shipping_status in ["shipped", "delivered"]:
+            raise OrderException(
+                code="CANCELLATION_NOT_ALLOWED",
+                message="배송 후에는 취소할 수 없습니다.",
+            )
+
+        # 3. 중복 요청 방지
+        if order.cancellation_status in ["cancel_requested", "cancelled"]:
+            raise OrderException(
+                code="DUPLICATE_CANCELLATION_REQUEST",
+                message="이미 취소 요청이 진행 중이거나 취소된 주문입니다.",
+            )
+
+        # 4. 취소 상태 업데이트
+        updated_order = OrderRepository.update_cancellation_status(
+            db,
+            order_id=order.id,
+            status="cancel_requested",
+            reason=reason,
+        )
+
+        return {"order": updated_order}
+
+    @staticmethod
+    def request_refund(
+        db: Session,
+        order_number: str,
+        reason: str,
+    ) -> dict:
+        """
+        주문 환불 요청
+
+        조건:
+        - shipping_status가 'delivered'여야 함
+        - refund_status가 'refund_requested' 또는 'refunded'가 아니어야 함
+
+        Args:
+            db: 데이터베이스 세션
+            order_number: 주문 번호
+            reason: 환불 사유
+
+        Returns:
+            {"order": Order}
+
+        Raises:
+            OrderException: 주문 없음, 상태 불가 등
+        """
+        # 1. 주문 확인
+        order = OrderRepository.get_order_by_number(db, order_number)
+        if not order:
+            raise OrderException(code="ORDER_NOT_FOUND", message="주문을 찾을 수 없습니다.")
+
+        # 2. 환불 가능 상태 검증
+        if order.shipping_status != "delivered":
+            raise OrderException(
+                code="REFUND_NOT_ALLOWED",
+                message="배송 완료 후에만 환불을 요청할 수 있습니다.",
+            )
+
+        # 3. 중복 요청 방지
+        if order.refund_status in ["refund_requested", "refunded"]:
+            raise OrderException(
+                code="DUPLICATE_REFUND_REQUEST",
+                message="이미 환불 요청이 진행 중이거나 환불된 주문입니다.",
+            )
+
+        # 4. 환불 상태 업데이트
+        updated_order = OrderRepository.update_refund_status(
+            db,
+            order_id=order.id,
+            status="refund_requested",
+            reason=reason,
+        )
+
+        return {"order": updated_order}

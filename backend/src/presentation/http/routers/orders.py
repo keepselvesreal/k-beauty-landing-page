@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from src.persistence.database import get_db
-from src.presentation.schemas.orders import OrderCreate, OrderResponse
+from src.presentation.schemas.orders import CancellationRefundRequest, OrderCreate, OrderResponse
 from src.utils.exceptions import OrderException
 from src.workflow.services.order_service import OrderService
 
@@ -111,6 +111,90 @@ async def initiate_payment(
                 "code": "INVALID_ORDER_ID",
                 "message": "유효하지 않은 주문 ID 형식입니다.",
             },
+        )
+    except OrderException as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": str(e),
+            },
+        )
+
+
+@router.post("/{order_number}/cancel-request", response_model=OrderResponse)
+async def request_cancellation(
+    order_number: str,
+    request_data: CancellationRefundRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    주문 취소 요청
+
+    조건:
+    - shipping_status가 'shipped' 또는 'delivered'가 아니어야 함
+    - cancellation_status가 'cancel_requested' 또는 'cancelled'가 아니어야 함
+    """
+    try:
+        result = OrderService.request_cancellation(
+            db,
+            order_number=order_number,
+            reason=request_data.reason,
+        )
+        return OrderResponse(
+            **result["order"].__dict__,
+            customer=result["order"].customer,
+            order_items=result["order"].order_items,
+        )
+    except OrderException as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": str(e),
+            },
+        )
+
+
+@router.post("/{order_number}/refund-request", response_model=OrderResponse)
+async def request_refund(
+    order_number: str,
+    request_data: CancellationRefundRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    주문 환불 요청
+
+    조건:
+    - shipping_status가 'delivered'여야 함
+    - refund_status가 'refund_requested' 또는 'refunded'가 아니어야 함
+    """
+    try:
+        result = OrderService.request_refund(
+            db,
+            order_number=order_number,
+            reason=request_data.reason,
+        )
+        return OrderResponse(
+            **result["order"].__dict__,
+            customer=result["order"].customer,
+            order_items=result["order"].order_items,
         )
     except OrderException as e:
         raise HTTPException(

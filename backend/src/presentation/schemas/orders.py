@@ -22,6 +22,11 @@ class OrderCreate(BaseModel):
     region: str  # 배송료 계산용
 
 
+class CancellationRefundRequest(BaseModel):
+    """취소/환불 요청 스키마"""
+    reason: str
+
+
 class OrderItemResponse(BaseModel):
     """주문 상품 응답 스키마"""
     id: UUID

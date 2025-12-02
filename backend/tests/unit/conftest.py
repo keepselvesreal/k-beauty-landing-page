@@ -149,7 +149,7 @@ def shipping_rate_ncr(test_db: Session):
 
 @pytest.fixture
 def order_with_customer(test_db: Session, sample_customer: Customer, sample_product: Product, shipping_rate_ncr: ShippingRate):
-    """고객 정보가 있는 주문"""
+    """고객 정보가 있는 주문 (배송 준비 중)"""
     order = Order(
         order_number="ORD-test-001",
         customer_id=sample_customer.id,
@@ -157,6 +157,26 @@ def order_with_customer(test_db: Session, sample_customer: Customer, sample_prod
         shipping_fee=Decimal("100.00"),
         total_price=Decimal("150.00"),
         payment_status="pending",
+        shipping_status="preparing",
+        profit=Decimal("80.00"),
+    )
+    test_db.add(order)
+    test_db.commit()
+    test_db.refresh(order)
+    return order
+
+
+@pytest.fixture
+def order_with_customer_delivered(test_db: Session, sample_customer: Customer, sample_product: Product, shipping_rate_ncr: ShippingRate):
+    """배송 완료된 고객 주문"""
+    order = Order(
+        order_number="ORD-test-delivered-001",
+        customer_id=sample_customer.id,
+        subtotal=Decimal("50.00"),
+        shipping_fee=Decimal("100.00"),
+        total_price=Decimal("150.00"),
+        payment_status="paid",
+        shipping_status="delivered",
         profit=Decimal("80.00"),
     )
     test_db.add(order)
