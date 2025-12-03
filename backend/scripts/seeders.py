@@ -367,7 +367,7 @@ class OrderSeeder(BaseSeeder):
 
         if orders_data is None:
             orders_data = [
-                # 배송 준비 중 (preparing) - 배송담당자 1 (NCR)
+                # 배송 준비 중 (preparing) - 배송담당자 1 (NCR) - 2개
                 {
                     "customer_index": 0,  # Maria Santos
                     "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
@@ -388,35 +388,36 @@ class OrderSeeder(BaseSeeder):
                     "shipping_status": "preparing",
                     "shipping_commission": Decimal("20"),
                 },
+                # 배송 중 (in_transit) - 배송담당자 1 (NCR) - 2개
                 {
                     "customer_index": 2,  # Rosa Garcia
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "in_transit",
+                    "shipping_commission": Decimal("20"),
+                },
+                {
+                    "customer_index": 0,  # Maria Santos
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "in_transit",
+                    "shipping_commission": Decimal("20"),
+                },
+                # 배송 완료 (delivered) - 배송담당자 1 (NCR) - 2개
+                {
+                    "customer_index": 1,  # Juan Dela Cruz
                     "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
                     "items": [
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 3},
                     ],
                     "shipping_fee": Decimal("100"),
-                    "shipping_status": "preparing",
-                    "shipping_commission": Decimal("20"),
-                },
-                # 배송 중 (in_transit) - 배송담당자 1 (NCR)
-                {
-                    "customer_index": 0,  # Maria Santos
-                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
-                    "items": [
-                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
-                    ],
-                    "shipping_fee": Decimal("100"),
-                    "shipping_status": "in_transit",
-                    "shipping_commission": Decimal("20"),
-                },
-                {
-                    "customer_index": 1,  # Juan Dela Cruz
-                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
-                    "items": [
-                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
-                    ],
-                    "shipping_fee": Decimal("100"),
-                    "shipping_status": "in_transit",
+                    "shipping_status": "delivered",
                     "shipping_commission": Decimal("20"),
                 },
                 {
@@ -426,7 +427,7 @@ class OrderSeeder(BaseSeeder):
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
                     ],
                     "shipping_fee": Decimal("100"),
-                    "shipping_status": "in_transit",
+                    "shipping_status": "delivered",
                     "shipping_commission": Decimal("20"),
                 },
                 # 배송 준비 중 (preparing) - 배송담당자 2 (Visayas)
@@ -764,7 +765,8 @@ class RefundSeeder(BaseSeeder):
         """
         환불 요청 데이터 생성 (Order 생성 후)
 
-        주어진 주문들을 배송 완료 상태로 만들고, 일부를 환불 요청 상태로 변경
+        배송 완료(delivered) 상태인 주문들만 환불 요청 상태로 변경
+        다른 배송 상태(preparing, in_transit)는 유지
         """
         if not orders_result or "data" not in orders_result:
             raise ValueError("환불 요청 생성을 위해 먼저 Order를 생성해야 합니다.")
@@ -772,18 +774,14 @@ class RefundSeeder(BaseSeeder):
         orders = orders_result["data"]
         created_refunds = []
 
-        # 각 주문에 대해 배송 완료 상태로 만들기
+        # 배송 완료 상태인 주문들만 처리
         for idx, order in enumerate(orders):
-            # 배송 완료 상태로 변경
-            order.shipping_status = "delivered"
-            order.payment_status = "completed"
-            self.db.add(order)
-
-            # 첫 번째 주문을 환불 요청 상태로 변경
-            if idx == 0:
+            # delivered 상태인 주문만 환불 요청으로 변경
+            if order.shipping_status == "delivered":
                 order.refund_status = "refund_requested"
                 order.refund_reason = "상품 불량"
                 order.refund_requested_at = datetime.utcnow()
+                self.db.add(order)
                 created_refunds.append(order)
 
         self.commit()
