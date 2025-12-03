@@ -160,6 +160,34 @@ export const api = {
     return await response.json();
   },
 
+  // 배송 완료 처리 (배송담당자)
+  async completeDelivery(orderId: string): Promise<ShipmentResponse> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/fulfillment-partner/orders/${orderId}/complete`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to complete delivery');
+    }
+
+    return await response.json();
+  },
+
   // 인플루언서 대시보드 조회
   async getInfluencerDashboard(): Promise<InfluencerDashboard> {
     const token = sessionStorage.getItem('token');

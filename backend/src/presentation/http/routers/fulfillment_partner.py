@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 
 from src.persistence.database import get_db
-from src.persistence.models import User, FulfillmentPartner, Order
+from src.persistence.models import User, FulfillmentPartner, Order, Shipment
 from src.persistence.repositories.order_repository import OrderRepository
 from src.presentation.schemas.fulfillment_partner import (
     FulfillmentPartnerOrdersListResponse,
@@ -13,6 +13,7 @@ from src.presentation.schemas.fulfillment_partner import (
     ShipmentRequest,
     ShipmentResponse,
 )
+from src.presentation.schemas.admin import CompleteShipmentResponse
 from src.utils.auth import JWTTokenManager
 from src.utils.exceptions import AuthenticationError, OrderException
 from src.workflow.services.shipment_service import ShipmentService
@@ -157,15 +158,15 @@ async def get_fulfillment_partner_orders(
             for item in order.order_items
         ]
 
-        # 배송주소: 고객의 address 또는 region
-        shipping_address = order.customer.address or order.customer.region or "N/A"
-
         order_response = FulfillmentPartnerOrderResponse(
             order_id=order.id,
             order_number=order.order_number,
+            customer_name=order.customer.name,
             customer_email=order.customer.email,
+            customer_region=order.customer.region,
+            customer_address=order.customer.address or "N/A",
+            customer_detailed_address=getattr(order.customer, 'detailed_address', None),
             products=products,
-            shipping_address=shipping_address,
             total_price=order.total_price,
             status=order.shipping_status,
             created_at=order.created_at,
@@ -263,6 +264,107 @@ async def process_shipment(
 
     except OrderException as e:
         # 주문 오류 (없음, 유효하지 않은 입력 등)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+
+
+@router.patch("/orders/{order_id}/complete", response_model=CompleteShipmentResponse)
+async def complete_delivery(
+    order_id: UUID,
+    current_partner: FulfillmentPartner = Depends(get_current_fulfillment_partner),
+    db: Session = Depends(get_db),
+):
+    """
+    배송 완료 처리 (고객이 배송받은 상태로 변경)
+
+    단계:
+    1. Order의 Shipment 조회
+    2. 권한 검증 (본인 배송담당자의 배송만 처리)
+    3. Shipment 상태 업데이트 (shipped → delivered)
+    4. Order 상태 업데이트 (in_transit → delivered)
+    5. delivered_at 타임스탬프 기록
+
+    Args:
+        order_id: 주문 ID
+
+    Returns:
+        {
+            "success": True,
+            "shipment_id": "uuid",
+            "order_id": "uuid",
+            "order_number": "ORD-xxx",
+            "status": "delivered",
+            "delivered_at": "2025-12-03T12:00:00Z"
+        }
+    """
+    try:
+        # 1. Order 확인 및 권한 검증
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order:
+            raise OrderException(
+                code="ORDER_NOT_FOUND",
+                message=f"주문을 찾을 수 없습니다: {order_id}",
+            )
+
+        if order.fulfillment_partner_id != current_partner.id:
+            raise AuthenticationError(
+                code="FORBIDDEN",
+                message="이 주문을 처리할 권한이 없습니다.",
+            )
+
+        # 2. Shipment 조회
+        shipment = db.query(Shipment).filter(Shipment.order_id == order_id).first()
+        if not shipment:
+            # 배송 상태에 따른 명확한 에러 메시지 제공
+            if order.shipping_status == "preparing":
+                raise OrderException(
+                    code="SHIPMENT_NOT_FOUND",
+                    message="아직 배송 정보가 등록되지 않았습니다. 먼저 배송 정보를 입력한 후 배송 완료 처리가 가능합니다.",
+                )
+            elif order.shipping_status == "delivered":
+                raise OrderException(
+                    code="ALREADY_DELIVERED",
+                    message="이미 배송 완료된 주문입니다.",
+                )
+            else:
+                raise OrderException(
+                    code="SHIPMENT_NOT_FOUND",
+                    message=f"배송 정보를 찾을 수 없습니다. 현재 배송 상태: {order.shipping_status}",
+                )
+
+        # 3. 배송 완료 처리 (ShipmentService 활용)
+        result = ShipmentService.complete_shipment(
+            db,
+            shipment_id=shipment.id,
+            partner_id=current_partner.id,  # 권한 검증 포함
+        )
+
+        return CompleteShipmentResponse(
+            success=result["success"],
+            shipment_id=result["shipment_id"],
+            order_id=result["order_id"],
+            order_number=result["order_number"],
+            status=result["status"],
+            delivered_at=result["delivered_at"],
+        )
+
+    except AuthenticationError as e:
+        # 권한 오류
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+
+    except OrderException as e:
+        # 주문 오류
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={

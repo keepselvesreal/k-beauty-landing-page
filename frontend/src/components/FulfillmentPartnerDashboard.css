@@ -34,9 +34,9 @@
   font-size: 16px;
 }
 
+.inquiry-btn,
 .logout-btn {
   padding: 10px 20px;
-  background: #ff6b6b;
   color: white;
   border: none;
   border-radius: 6px;
@@ -44,6 +44,19 @@
   font-size: 14px;
   font-weight: 600;
   transition: background 0.3s;
+  margin-left: 10px;
+}
+
+.inquiry-btn {
+  background: #a29bfe;
+}
+
+.inquiry-btn:hover {
+  background: #9183d9;
+}
+
+.logout-btn {
+  background: #ff6b6b;
 }
 
 .logout-btn:hover {
@@ -113,6 +126,145 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 20px;
+}
+
+/* 테이블 스타일 */
+.orders-table-wrapper {
+  overflow-x: auto;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.orders-table thead {
+  background: #f5f7fa;
+  border-bottom: 2px solid #e0e6ed;
+}
+
+.orders-table th {
+  padding: 15px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.orders-table tbody tr {
+  border-bottom: 1px solid #e0e6ed;
+  transition: background 0.2s;
+}
+
+.orders-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.orders-table td {
+  padding: 15px 12px;
+  font-size: 13px;
+  color: #666;
+}
+
+.order-number-col {
+  font-weight: 600;
+  color: #333;
+}
+
+.customer-name-col {
+  font-weight: 500;
+  color: #333;
+}
+
+.region-col {
+  color: #555;
+}
+
+.address-col {
+  max-width: 250px;
+  word-break: break-word;
+  font-size: 12px;
+}
+
+.total-price-col {
+  font-weight: 600;
+  color: #4a90e2;
+}
+
+.status-col {
+  text-align: center;
+}
+
+.action-col {
+  text-align: center;
+  white-space: normal;
+  padding: 15px 12px;
+}
+
+.action-btn {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin: 0;
+}
+
+.ship-info-btn {
+  background: #4a90e2;
+  color: white;
+  border-color: #4a90e2;
+}
+
+.ship-info-btn:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+.complete-btn {
+  background: #27ae60;
+  color: white;
+  border-color: #27ae60;
+}
+
+.complete-btn:hover {
+  background: #229954;
+  border-color: #229954;
+}
+
+.complete-btn.disabled {
+  background: #bdc3c7;
+  color: #7f8c8d;
+  border-color: #bdc3c7;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.complete-btn.disabled:hover {
+  background: #bdc3c7;
+  border-color: #bdc3c7;
+}
+
+
+.status-completed {
+  color: #999;
+  font-size: 12px;
+}
+
+.status-in_transit {
+  background: #74b9ff;
+  color: #0052cc;
+}
+
+.status-delivered {
+  background: #55efc4;
+  color: #00b894;
 }
 
 .order-card {
@@ -307,6 +459,18 @@
   font-size: 14px;
 }
 
+@media (max-width: 1024px) {
+  .orders-table th,
+  .orders-table td {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+
+  .address-col {
+    max-width: 150px;
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-header {
     flex-direction: column;
@@ -330,5 +494,25 @@
 
   .ship-btn {
     width: 100%;
+  }
+
+  .orders-table-wrapper {
+    font-size: 12px;
+  }
+
+  .orders-table th,
+  .orders-table td {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+
+  .address-col {
+    max-width: 100px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    margin: 0;
   }
 }

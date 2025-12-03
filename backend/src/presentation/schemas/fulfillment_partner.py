@@ -25,11 +25,14 @@ class FulfillmentPartnerOrderResponse(BaseModel):
     """배송담당자가 조회하는 주문 정보"""
     order_id: UUID
     order_number: str
+    customer_name: str
     customer_email: str
+    customer_region: str
+    customer_address: str
+    customer_detailed_address: Optional[str]
     products: list[ProductInOrder]
-    shipping_address: str
     total_price: Decimal
-    status: str  # "preparing"
+    status: str  # "preparing", "in_transit", "delivered"
     created_at: datetime
 
     class Config:

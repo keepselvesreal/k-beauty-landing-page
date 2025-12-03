@@ -74,9 +74,12 @@ export interface FulfillmentPartnerOrderProduct {
 export interface FulfillmentPartnerOrder {
   order_id: string;
   order_number: string;
+  customer_name: string;
   customer_email: string;
+  customer_region: string;
+  customer_address: string;
+  customer_detailed_address?: string;
   products: FulfillmentPartnerOrderProduct[];
-  shipping_address: string;
   total_price: number | string;
   status: string;
   created_at: string;

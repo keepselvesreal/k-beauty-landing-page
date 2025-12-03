@@ -64,6 +64,25 @@ const FulfillmentPartnerDashboard: React.FC = () => {
     });
   };
 
+  const handleCompleteDelivery = async (orderId: string) => {
+    try {
+      await api.completeDelivery(orderId);
+      setToast({
+        type: 'success',
+        message: '배송이 완료되었습니다.',
+      });
+      await loadOrders();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to complete delivery';
+      setToast({
+        type: 'error',
+        message: `배송 완료 처리에 실패했습니다: ${message}`,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="dashboard">
@@ -104,26 +123,43 @@ const FulfillmentPartnerDashboard: React.FC = () => {
         <div className="stats-section">
           <div className="stat-card">
             <div className="stat-value">{data?.orders.length || 0}</div>
-            <div className="stat-label">배송 대기 중인 주문</div>
+            <div className="stat-label">배송 주문</div>
           </div>
         </div>
 
         <section className="orders-section">
-          <h2>📦 배송 대기 주문 목록</h2>
+          <h2>📦 배송 주문 목록</h2>
 
           {data && data.orders.length === 0 ? (
             <div className="empty-state">
-              <p>배송 대기 중인 주문이 없습니다.</p>
+              <p>배송 주문이 없습니다.</p>
             </div>
           ) : (
-            <div className="orders-grid">
-              {data?.orders.map((order) => (
-                <OrderCard
-                  key={order.order_id}
-                  order={order}
-                  onShipmentClick={handleOpenShipmentForm}
-                />
-              ))}
+            <div className="orders-table-wrapper">
+              <table className="orders-table">
+                <thead>
+                  <tr>
+                    <th>주문번호</th>
+                    <th>구매자 이름</th>
+                    <th>배송 지역</th>
+                    <th>배송 주소</th>
+                    <th>총액</th>
+                    <th>배송 상태</th>
+                    <th>배송정보</th>
+                    <th>배송완료</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data?.orders.map((order) => (
+                    <OrderTableRow
+                      key={order.order_id}
+                      order={order}
+                      onShipmentClick={handleOpenShipmentForm}
+                      onCompleteDelivery={handleCompleteDelivery}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
@@ -157,64 +193,78 @@ const FulfillmentPartnerDashboard: React.FC = () => {
   );
 };
 
-interface OrderCardProps {
+interface OrderTableRowProps {
   order: FulfillmentPartnerOrder;
   onShipmentClick: (order: FulfillmentPartnerOrder) => void;
+  onCompleteDelivery: (orderId: string) => void;
 }
 
-const OrderCard: React.FC<OrderCardProps> = ({ order, onShipmentClick }) => {
-  const createdDate = new Date(order.created_at).toLocaleDateString('ko-KR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const getStatusLabel = (status: string) => {
+  const statusMap: { [key: string]: string } = {
+    'preparing': '배송 준비',
+    'in_transit': '배송 중',
+    'shipped': '배송 완료',
+    'delivered': '배송 완료'
+  };
+  return statusMap[status] || status;
+};
+
+const OrderTableRow: React.FC<OrderTableRowProps> = ({ order, onShipmentClick, onCompleteDelivery }) => {
+  const fullAddress = order.customer_detailed_address
+    ? `${order.customer_address}, ${order.customer_detailed_address}`
+    : order.customer_address;
+
+  const isPreparing = order.status === 'preparing';
+  const isInTransit = order.status === 'in_transit';
+  const isDelivered = order.status === 'delivered';
 
   return (
-    <div className="order-card">
-      <div className="order-header">
-        <div>
-          <div className="order-number">{order.order_number}</div>
-          <div className="order-date">{createdDate}</div>
-        </div>
-        <div className="order-status">
-          <span className={`status-badge status-${order.status}`}>
-            {order.status === 'preparing' ? '배송 준비' : order.status}
-          </span>
-        </div>
-      </div>
-
-      <div className="order-customer">
-        <strong>고객:</strong> {order.customer_email}
-      </div>
-
-      <div className="order-address">
-        <strong>배송주소:</strong> {order.shipping_address}
-      </div>
-
-      <div className="order-products">
-        <strong>상품 목록:</strong>
-        <ul>
-          {order.products.map((product, idx) => (
-            <li key={idx}>
-              <span className="product-name">{product.name}</span>
-              <span className="product-qty">x {product.quantity}</span>
-              <span className="product-price">${parseFloat(String(product.unit_price)).toFixed(2)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="order-footer">
-        <div className="order-total">
-          <strong>총액:</strong>
-          <span>${parseFloat(String(order.total_price)).toFixed(2)}</span>
-        </div>
-        <button className="ship-btn" onClick={() => onShipmentClick(order)}>
-          배송 정보 입력
-        </button>
-      </div>
-    </div>
+    <tr>
+      <td className="order-number-col">{order.order_number}</td>
+      <td className="customer-name-col">{order.customer_name}</td>
+      <td className="region-col">{order.customer_region}</td>
+      <td className="address-col">{fullAddress}</td>
+      <td className="total-price-col">${parseFloat(String(order.total_price)).toFixed(2)}</td>
+      <td className="status-col">
+        <span className={`status-badge status-${order.status}`}>
+          {getStatusLabel(order.status)}
+        </span>
+      </td>
+      <td className="action-col">
+        {isPreparing && (
+          <button
+            className="action-btn ship-info-btn"
+            onClick={() => onShipmentClick(order)}
+            title="배송 정보 입력"
+          >
+            배송정보
+          </button>
+        )}
+      </td>
+      <td className="action-col">
+        {isPreparing && (
+          <button
+            className="action-btn complete-btn disabled"
+            disabled
+            title="먼저 배송 정보를 입력한 후 사용할 수 있습니다"
+          >
+            배송완료
+          </button>
+        )}
+        {isInTransit && (
+          <button
+            className="action-btn complete-btn"
+            onClick={() => onCompleteDelivery(order.order_id)}
+            title="배송 완료"
+          >
+            배송완료
+          </button>
+        )}
+        {isDelivered && (
+          <span className="status-completed">배송 완료됨</span>
+        )}
+      </td>
+    </tr>
   );
 };
 
