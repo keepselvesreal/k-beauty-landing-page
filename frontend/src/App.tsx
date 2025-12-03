@@ -4,7 +4,7 @@ import ProductHero from './components/ProductHero';
 import Testimonials from './components/Testimonials';
 import OrderForm from './components/OrderForm';
 import OrderConfirmation from './components/OrderConfirmation';
-import AdminPanel from './components/AdminPanel';
+import StaffAccountManagement from './components/StaffAccountManagement';
 import AdminDashboard from './components/AdminDashboard';
 import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
@@ -97,7 +97,7 @@ const App: React.FC = () => {
             </div>
           )
         ) : isAdminPage ? (
-          <AdminPanel />
+          <StaffAccountManagement />
         ) : isOrderConfirmationPage && orderNumber ? (
           <OrderConfirmation orderNumber={orderNumber} />
         ) : (

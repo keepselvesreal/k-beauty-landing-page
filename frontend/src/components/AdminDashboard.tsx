@@ -1,184 +1,212 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './AdminDashboard.css';
-import InventoryAdjustmentModal from './InventoryAdjustmentModal';
-import Toast from './Toast';
+import InventoryManagementPage from './InventoryManagementPage';
+import StaffAccountManagement from './StaffAccountManagement';
 
-interface InventoryItem {
-  inventory_id: string;
-  partner_id: string;
-  partner_name: string;
-  product_id: string;
-  product_name: string;
-  current_quantity: number;
-  allocated_quantity: number;
-  last_adjusted_at: string;
-}
+type PageType = 'dashboard' | 'inventory' | 'payment' | 'shipment' | 'inquiry' | 'accounts';
 
-interface InventoryListResponse {
-  inventories: InventoryItem[];
-  total_count: number;
-}
-
-interface ToastMessage {
-  type: 'success' | 'error' | 'info';
-  text: string;
+interface RefundRequest {
+  refund_id: string;
+  order_id: string;
+  reason: string;
+  status: string;
+  requested_at: string;
 }
 
 const AdminDashboard: React.FC = () => {
-  const [inventories, setInventories] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedInventory, setSelectedInventory] = useState<InventoryItem | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [authToken] = useState(sessionStorage.getItem('token') || '');
+  const [currentPage, setCurrentPage] = useState<PageType>('dashboard');
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  // 더미 데이터
+  const dashboardMetrics = {
+    total_orders: 1250,
+    total_profit: 125000000,
+    pending_commission_influencer: 45000000,
+    pending_commission_fulfillment: 32000000,
+    completed_commission_influencer: 180000000,
+    completed_commission_fulfillment: 120000000,
+  };
 
-  // 재고 목록 조회
-  const fetchInventories = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/admin/inventory`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
+  const refundRequests: RefundRequest[] = [
+    {
+      refund_id: 'REF-001',
+      order_id: 'ORD-2024-001',
+      reason: '상품 불량',
+      status: '대기 중',
+      requested_at: '2024-12-01',
+    },
+    {
+      refund_id: 'REF-002',
+      order_id: 'ORD-2024-002',
+      reason: '사이즈 오류',
+      status: '승인됨',
+      requested_at: '2024-11-28',
+    },
+    {
+      refund_id: 'REF-003',
+      order_id: 'ORD-2024-003',
+      reason: '변심',
+      status: '거절됨',
+      requested_at: '2024-11-25',
+    },
+  ];
 
-      if (response.status === 401) {
-        setToast({ type: 'error', text: '인증이 필요합니다. 다시 로그인해주세요.' });
-        // 로그인 페이지로 리다이렉트
-        window.location.href = '/admin/login';
-        return;
-      }
+  const menuItems = [
+    { id: 'dashboard', label: '대시보드', icon: '📊' },
+    { id: 'inventory', label: '재고 관리', icon: '📦' },
+    { id: 'payment', label: '결제 관리', icon: '💳' },
+    { id: 'shipment', label: '배송 관리', icon: '🚚' },
+    { id: 'inquiry', label: '문의 관리', icon: '💬' },
+    { id: 'accounts', label: '계정 관리', icon: '👥' },
+  ];
 
-      if (response.status === 403) {
-        setToast({ type: 'error', text: '관리자 권한이 필요합니다.' });
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail?.message || '재고 조회에 실패했습니다.');
-      }
-
-      const data: InventoryListResponse = await response.json();
-      setInventories(data.inventories);
-      setToast({ type: 'success', text: `${data.total_count}개의 재고를 불러왔습니다.` });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '재고 조회 중 오류가 발생했습니다.';
-      setToast({ type: 'error', text: message });
-      console.error('Error fetching inventories:', error);
-    } finally {
-      setLoading(false);
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'inventory':
+        return <InventoryManagementPage />;
+      case 'accounts':
+        return <StaffAccountManagement />;
+      case 'payment':
+      case 'shipment':
+      case 'inquiry':
+        return (
+          <div className="admin-dashboard">
+            <div className="dashboard-header">
+              <h1>{menuItems.find(m => m.id === currentPage)?.label}</h1>
+            </div>
+            <div className="empty-state">
+              <p>준비 중인 페이지입니다.</p>
+            </div>
+          </div>
+        );
+      default:
+        return <DashboardHub metrics={dashboardMetrics} refundRequests={refundRequests} />;
     }
   };
 
-  // 초기 로드
-  useEffect(() => {
-    fetchInventories();
-  }, []);
-
-  // 모달 닫기
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedInventory(null);
-  };
-
-  // 조정 완료 후 재고 다시 조회
-  const handleAdjustmentSuccess = () => {
-    setToast({ type: 'success', text: '재고가 수정되었습니다.' });
-    handleCloseModal();
-    fetchInventories();
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  if (loading) {
-    return <div className="admin-dashboard loading">로딩 중...</div>;
-  }
-
   return (
-    <div className="admin-dashboard">
-      <div className="dashboard-header">
-        <h1>재고 관리</h1>
-        <button
-          className="btn-refresh"
-          onClick={fetchInventories}
-          disabled={loading}
-        >
-          새로고침
-        </button>
+    <div className="admin-dashboard-container">
+      {/* 헤더 네비게이션 */}
+      <div className="admin-nav-header">
+        <h1 className="admin-title">관리자 대시보드</h1>
+        <nav className="admin-nav-menu">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              className={`nav-menu-item ${currentPage === item.id ? 'active' : ''}`}
+              onClick={() => setCurrentPage(item.id as PageType)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {inventories.length === 0 ? (
-        <div className="empty-state">
-          <p>등록된 재고가 없습니다.</p>
+      {/* 콘텐츠 영역 */}
+      <div className="admin-content">
+        {renderPage()}
+      </div>
+    </div>
+  );
+};
+
+// 대시보드 허브 컴포넌트
+interface DashboardHubProps {
+  metrics: any;
+  refundRequests: RefundRequest[];
+}
+
+const DashboardHub: React.FC<DashboardHubProps> = ({ metrics, refundRequests }) => {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('ko-KR', {
+      style: 'currency',
+      currency: 'KRW',
+      minimumFractionDigits: 0,
+    }).format(value);
+  };
+
+  return (
+    <div className="dashboard-hub">
+      <div className="dashboard-header">
+        <h2>대시보드</h2>
+      </div>
+
+      {/* 주요 지표 카드 */}
+      <div className="metrics-grid">
+        <div className="metric-card">
+          <div className="metric-label">총 주문 수</div>
+          <div className="metric-value">{metrics.total_orders.toLocaleString()}</div>
+          <div className="metric-unit">건</div>
         </div>
-      ) : (
-        <div className="inventory-table-wrapper">
-          <table className="inventory-table">
+
+        <div className="metric-card">
+          <div className="metric-label">총 이윤</div>
+          <div className="metric-value">{formatCurrency(metrics.total_profit)}</div>
+        </div>
+      </div>
+
+      {/* 지급 예정 수수료 */}
+      <div className="commission-section">
+        <h3>지급 예정 수수료</h3>
+        <div className="commission-grid">
+          <div className="commission-card">
+            <div className="commission-label">인플루언서</div>
+            <div className="commission-amount">{formatCurrency(metrics.pending_commission_influencer)}</div>
+          </div>
+          <div className="commission-card">
+            <div className="commission-label">배송담당자</div>
+            <div className="commission-amount">{formatCurrency(metrics.pending_commission_fulfillment)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 지급 완료 수수료 */}
+      <div className="commission-section">
+        <h3>지급 완료 수수료</h3>
+        <div className="commission-grid">
+          <div className="commission-card">
+            <div className="commission-label">인플루언서</div>
+            <div className="commission-amount">{formatCurrency(metrics.completed_commission_influencer)}</div>
+          </div>
+          <div className="commission-card">
+            <div className="commission-label">배송담당자</div>
+            <div className="commission-amount">{formatCurrency(metrics.completed_commission_fulfillment)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* 환불 요청 목록 */}
+      <div className="refund-section">
+        <h3>환불 요청</h3>
+        <div className="refund-table-wrapper">
+          <table className="refund-table">
             <thead>
               <tr>
-                <th>배송담당자명</th>
-                <th>상품명</th>
-                <th>현재 수량</th>
-                <th>할당 수량</th>
-                <th>마지막 수정</th>
-                <th>작업</th>
+                <th>환불 ID</th>
+                <th>주문 ID</th>
+                <th>사유</th>
+                <th>상태</th>
+                <th>신청일</th>
               </tr>
             </thead>
             <tbody>
-              {inventories.map((item) => (
-                <tr key={item.inventory_id}>
-                  <td>{item.partner_name}</td>
-                  <td>{item.product_name}</td>
-                  <td className="quantity">{item.current_quantity}</td>
-                  <td className="allocated">{item.allocated_quantity}</td>
-                  <td>{formatDate(item.last_adjusted_at)}</td>
-                  <td className="actions">
-                    <button
-                      className="btn-adjust"
-                      onClick={() => {
-                        setSelectedInventory(item);
-                        setShowModal(true);
-                      }}
-                    >
-                      수정
-                    </button>
+              {refundRequests.map((request) => (
+                <tr key={request.refund_id}>
+                  <td>{request.refund_id}</td>
+                  <td>{request.order_id}</td>
+                  <td>{request.reason}</td>
+                  <td>
+                    <span className={`status-badge status-${request.status}`}>
+                      {request.status}
+                    </span>
                   </td>
+                  <td>{request.requested_at}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      {showModal && selectedInventory && (
-        <InventoryAdjustmentModal
-          inventory={selectedInventory}
-          token={authToken}
-          onClose={handleCloseModal}
-          onSuccess={handleAdjustmentSuccess}
-          onError={(error) => setToast({ type: 'error', text: error })}
-        />
-      )}
-
-      {toast && (
-        <Toast
-          type={toast.type}
-          message={toast.text}
-          onClose={() => setToast(null)}
-        />
-      )}
+      </div>
     </div>
   );
 };

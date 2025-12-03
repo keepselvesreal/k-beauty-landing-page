@@ -22,7 +22,7 @@ interface LoginResponse {
   token_type: string;
 }
 
-const AdminPanel: React.FC = () => {
+const StaffAccountManagement: React.FC = () => {
   // 사용자 생성 폼
   const [createForm, setCreateForm] = useState<CreateUserForm>({
     email: '',
@@ -130,13 +130,13 @@ const AdminPanel: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">🔐 관리자 대시보드</h1>
-        <p className="text-gray-600 mb-8">사용자 계정 생성 및 로그인 테스트</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">👥 동료 계정 관리</h1>
+        <p className="text-gray-600 mb-8">배송담당자 및 인플루언서 계정 생성</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* 사용자 생성 섹션 */}
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">👤 사용자 생성</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">👤 계정 생성</h2>
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
@@ -195,7 +195,7 @@ const AdminPanel: React.FC = () => {
                 disabled={createLoading}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded-lg transition"
               >
-                {createLoading ? '생성 중...' : '사용자 생성'}
+                {createLoading ? '생성 중...' : '계정 생성'}
               </button>
             </form>
 
@@ -215,7 +215,7 @@ const AdminPanel: React.FC = () => {
             {/* 생성된 사용자 목록 */}
             {createdUsers.length > 0 && (
               <div className="mt-8">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">✅ 생성된 사용자</h3>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">✅ 생성된 계정</h3>
                 <div className="space-y-2">
                   {createdUsers.map((user) => (
                     <div
@@ -343,4 +343,4 @@ const AdminPanel: React.FC = () => {
   );
 };
 
-export default AdminPanel;
+export default StaffAccountManagement;
