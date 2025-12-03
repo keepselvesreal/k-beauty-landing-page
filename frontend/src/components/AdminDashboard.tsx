@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import './AdminDashboard.css';
 import InventoryManagementPage from './InventoryManagementPage';
 import StaffAccountManagement from './StaffAccountManagement';
+import ShippingManagementPage from './ShippingManagementPage';
 
 type PageType = 'dashboard' | 'inventory' | 'payment' | 'shipment' | 'inquiry' | 'accounts';
 
@@ -65,8 +66,9 @@ const AdminDashboard: React.FC = () => {
         return <InventoryManagementPage />;
       case 'accounts':
         return <StaffAccountManagement />;
-      case 'payment':
       case 'shipment':
+        return <ShippingManagementPage />;
+      case 'payment':
       case 'inquiry':
         return (
           <div className="admin-dashboard">

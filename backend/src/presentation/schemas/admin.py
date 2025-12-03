@@ -74,3 +74,38 @@ class InventoryHistoryResponse(BaseModel):
     partner_name: str
     product_name: str
     history: list[InventoryAdjustmentHistoryItem]
+
+
+# ============================================
+# 배송 관리
+# ============================================
+class ShipmentItem(BaseModel):
+    """배송 목록 항목"""
+    shipment_id: UUID
+    order_id: UUID
+    order_number: str
+    customer_name: str
+    customer_address: str
+    total_price: float
+    status: str
+    carrier: str | None
+    tracking_number: str | None
+    partner_name: str
+    shipped_at: datetime | None
+    delivered_at: datetime | None
+
+
+class ShipmentListResponse(BaseModel):
+    """배송 목록 응답"""
+    shipments: list[ShipmentItem]
+    total_count: int
+
+
+class CompleteShipmentResponse(BaseModel):
+    """배송 완료 응답"""
+    success: bool
+    shipment_id: UUID
+    order_id: UUID
+    order_number: str
+    status: str
+    delivered_at: datetime

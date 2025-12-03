@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 
 from ....persistence.database import get_db
-from ....persistence.models import User
+from ....persistence.models import User, Shipment, Order, Customer
 from ....persistence.repositories.inventory_repository import InventoryRepository
 from ....workflow.services.admin_service import AdminService
+from ....workflow.services.shipment_service import ShipmentService
 from ....utils.auth import JWTTokenManager
 from ....utils.exceptions import AuthenticationError, OrderException
 from ...schemas.admin import (
@@ -20,6 +21,9 @@ from ...schemas.admin import (
     InventoryHistoryResponse,
     InventoryItem,
     InventoryAdjustmentHistoryItem,
+    ShipmentItem,
+    ShipmentListResponse,
+    CompleteShipmentResponse,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -292,5 +296,122 @@ async def get_inventory_history(
             detail={
                 "code": "INVENTORY_HISTORY_FETCH_FAILED",
                 "message": f"이력 조회에 실패했습니다: {str(e)}",
+            },
+        )
+
+
+# ============================================
+# 배송 관리 엔드포인트
+# ============================================
+
+@router.get("/shipments", response_model=ShipmentListResponse)
+async def get_shipments(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    모든 배송 목록 조회 (관리자 전용)
+
+    Returns:
+        - shipments: 배송 목록
+        - total_count: 전체 배송 수
+    """
+    try:
+        shipments = (
+            db.query(Shipment, Order, Customer)
+            .join(Order, Shipment.order_id == Order.id)
+            .join(Customer, Order.customer_id == Customer.id)
+            .all()
+        )
+
+        shipment_items = []
+        for shipment, order, customer in shipments:
+            partner_name = shipment.partner.name if shipment.partner else "N/A"
+            customer_address = customer.address or customer.region or "N/A"
+
+            shipment_items.append(
+                ShipmentItem(
+                    shipment_id=shipment.id,
+                    order_id=order.id,
+                    order_number=order.order_number,
+                    customer_name=customer.name,
+                    customer_address=customer_address,
+                    total_price=float(order.total_price),
+                    status=shipment.status,
+                    carrier=shipment.carrier,
+                    tracking_number=shipment.tracking_number,
+                    partner_name=partner_name,
+                    shipped_at=shipment.shipped_at,
+                    delivered_at=shipment.delivered_at,
+                )
+            )
+
+        return ShipmentListResponse(
+            shipments=shipment_items,
+            total_count=len(shipment_items),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "SHIPMENT_FETCH_FAILED",
+                "message": f"배송 조회에 실패했습니다: {str(e)}",
+            },
+        )
+
+
+@router.patch("/shipments/{shipment_id}/complete", response_model=CompleteShipmentResponse)
+async def complete_shipment(
+    shipment_id: UUID,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    배송 완료 처리 (관리자 전용)
+
+    Args:
+        shipment_id: 배송 ID
+
+    Returns:
+        {
+            "success": True,
+            "shipment_id": "uuid",
+            "order_id": "uuid",
+            "order_number": "ORD-xxx",
+            "status": "delivered",
+            "delivered_at": "2025-12-03T12:00:00Z"
+        }
+    """
+    try:
+        result = ShipmentService.complete_shipment(
+            db,
+            shipment_id=shipment_id,
+            partner_id=None,  # admin은 권한 검증 안 함
+        )
+
+        return CompleteShipmentResponse(
+            success=result["success"],
+            shipment_id=result["shipment_id"],
+            order_id=result["order_id"],
+            order_number=result["order_number"],
+            status=result["status"],
+            delivered_at=result["delivered_at"],
+        )
+
+    except OrderException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": e.code,
+                "message": e.message,
+            },
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "SHIPMENT_COMPLETE_FAILED",
+                "message": f"배송 완료 처리에 실패했습니다: {str(e)}",
             },
         )

@@ -109,3 +109,77 @@ class ShipmentService:
             "tracking_number": tracking_number.strip(),
             "shipped_at": shipped_at,
         }
+
+    @staticmethod
+    def complete_shipment(
+        db: Session,
+        shipment_id: UUID,
+        partner_id: UUID = None,
+    ) -> dict:
+        """
+        배송 완료 처리
+
+        단계:
+        1. Shipment 조회
+        2. 권한 검증 (배송담당자인 경우만)
+        3. Shipment 상태 업데이트 (shipped → delivered)
+        4. delivered_at 타임스탬프 기록
+        5. Order 상태 업데이트 (shipped → completed)
+
+        Args:
+            db: 데이터베이스 세션
+            shipment_id: 배송 ID
+            partner_id: 배송담당자 ID (None이면 admin, 있으면 배송담당자 권한 검증)
+
+        Returns:
+            {
+                "success": True,
+                "shipment_id": UUID,
+                "order_id": UUID,
+                "order_number": str,
+                "status": "delivered",
+                "delivered_at": datetime,
+            }
+
+        Raises:
+            OrderException: 배송 없음, 검증 오류
+            AuthenticationError: 권한 없음 (다른 배송담당자의 배송)
+        """
+
+        # 1. Shipment 조회
+        shipment = db.query(Shipment).filter(Shipment.id == shipment_id).first()
+        if not shipment:
+            raise OrderException(
+                code="SHIPMENT_NOT_FOUND",
+                message=f"배송을 찾을 수 없습니다: {shipment_id}",
+            )
+
+        # 2. 권한 검증 (배송담당자인 경우)
+        if partner_id and shipment.partner_id != partner_id:
+            raise AuthenticationError(
+                code="FORBIDDEN",
+                message="이 배송을 처리할 권한이 없습니다.",
+            )
+
+        # 3. Shipment 상태 업데이트
+        delivered_at = datetime.utcnow()
+        shipment.status = "delivered"
+        shipment.delivered_at = delivered_at
+        db.add(shipment)
+
+        # 4. Order 상태 업데이트
+        order = db.query(Order).filter(Order.id == shipment.order_id).first()
+        if order:
+            order.shipping_status = "completed"
+            db.add(order)
+
+        db.commit()
+
+        return {
+            "success": True,
+            "shipment_id": shipment.id,
+            "order_id": shipment.order_id,
+            "order_number": order.order_number if order else "N/A",
+            "status": "delivered",
+            "delivered_at": delivered_at,
+        }

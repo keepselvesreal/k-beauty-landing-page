@@ -1,0 +1,329 @@
+.shipping-page {
+  padding: 20px;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.shipping-page.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  color: #666;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #333;
+}
+
+.btn-refresh {
+  padding: 8px 16px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-refresh:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.empty-state p {
+  margin: 0;
+  color: #999;
+  font-size: 16px;
+}
+
+.shipments-table-wrapper {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.shipments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.shipments-table thead {
+  background: #f9f9f9;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.shipments-table th {
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.shipments-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #666;
+}
+
+.shipment-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.shipment-row:hover {
+  background: #fafafa;
+}
+
+.shipment-row .order-number {
+  font-weight: 600;
+  color: #333;
+}
+
+.shipment-row .partner-name {
+  color: #666;
+}
+
+.shipment-row .status {
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-preparing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-shipped {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.badge-delivered {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.badge-unknown {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+  padding: 0;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  margin: 20px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: block;
+}
+
+.info-section {
+  display: block;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.info-section:last-child {
+  margin-bottom: 0;
+}
+
+.info-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.info-item {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.info-item .label {
+  color: #666;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.info-item .value {
+  color: #333;
+  word-break: break-word;
+  display: block;
+  padding-left: 0;
+  font-weight: 500;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid #eee;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .shipping-page {
+    padding: 10px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 22px;
+  }
+
+  .shipments-table {
+    font-size: 12px;
+  }
+
+  .shipments-table th,
+  .shipments-table td {
+    padding: 8px;
+  }
+
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-content {
+    max-width: 100%;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
