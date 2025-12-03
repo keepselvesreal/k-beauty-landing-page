@@ -302,7 +302,12 @@ class InventorySeeder(BaseSeeder):
         if inventory_data is None:
             inventory_data = [
                 {
-                    "partner_name": "조선미녀 필리핀 배송담당자",
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "product_sku": "JOSEONMINYEO-RICECREAM-50ML",
+                    "quantity": 30,
+                },
+                {
+                    "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
                     "product_sku": "JOSEONMINYEO-RICECREAM-50ML",
                     "quantity": 20,
                 },
