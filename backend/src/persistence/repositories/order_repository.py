@@ -186,21 +186,47 @@ class OrderRepository:
         db: Session,
     ) -> list[Order]:
         """
-        환불 요청 목록 조회 (관리자용)
+        환불 관련 주문 목록 조회 (관리자용)
 
         조건:
-        - refund_status = 'refund_requested' (환불 요청 중)
+        - refund_status가 null이 아닌 모든 주문 (refund_requested, refunded, refund_rejected 등)
         - 요청 날짜 역순 정렬 (최신 먼저)
 
         Args:
             db: 데이터베이스 세션
 
         Returns:
-            환불 요청이 있는 Order 리스트
+            환불 관련 주문 리스트
         """
         orders = db.query(Order).filter(
-            Order.refund_status == "refund_requested"
+            Order.refund_status.isnot(None)
         ).order_by(
             Order.refund_requested_at.desc()
         ).all()
         return orders
+
+    @staticmethod
+    def approve_refund(
+        db: Session,
+        order_id: UUID,
+    ) -> Order:
+        """환불 승인"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.refund_status = "refunded"
+            db.commit()
+            db.refresh(order)
+        return order
+
+    @staticmethod
+    def reject_refund(
+        db: Session,
+        order_id: UUID,
+    ) -> Order:
+        """환불 거절"""
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if order:
+            order.refund_status = "refund_rejected"
+            db.commit()
+            db.refresh(order)
+        return order

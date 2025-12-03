@@ -130,3 +130,18 @@ class RefundListResponse(BaseModel):
     """환불 요청 목록 응답"""
     refunds: list[RefundItem]
     total_count: int
+
+
+class ProcessRefundRequest(BaseModel):
+    """환불 처리 요청"""
+    action: str = Field(..., description="처리 액션: approve 또는 reject")
+    notes: str | None = Field(None, description="관리자 메모 (선택적)")
+
+
+class ProcessRefundResponse(BaseModel):
+    """환불 처리 응답"""
+    success: bool
+    order_id: UUID
+    order_number: str
+    refund_status: str
+    processed_at: datetime

@@ -8,6 +8,7 @@ from uuid import UUID
 from ....persistence.database import get_db
 from ....persistence.models import User, Shipment, Order, Customer
 from ....persistence.repositories.inventory_repository import InventoryRepository
+from ....persistence.repositories.order_repository import OrderRepository
 from ....workflow.services.admin_service import AdminService
 from ....workflow.services.shipment_service import ShipmentService
 from ....utils.auth import JWTTokenManager
@@ -26,6 +27,8 @@ from ...schemas.admin import (
     CompleteShipmentResponse,
     RefundItem,
     RefundListResponse,
+    ProcessRefundRequest,
+    ProcessRefundResponse,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -439,7 +442,7 @@ async def get_refund_requests(
         orders = (
             db.query(Order, Customer)
             .join(Customer, Order.customer_id == Customer.id)
-            .filter(Order.refund_status == "refund_requested")
+            .filter(Order.refund_status.isnot(None))
             .order_by(Order.refund_requested_at.desc())
             .all()
         )
@@ -470,5 +473,78 @@ async def get_refund_requests(
             detail={
                 "code": "REFUND_FETCH_FAILED",
                 "message": f"환불 요청 조회에 실패했습니다: {str(e)}",
+            },
+        )
+
+
+@router.patch("/refunds/{order_id}/process", response_model=ProcessRefundResponse)
+async def process_refund(
+    order_id: UUID,
+    request: ProcessRefundRequest,
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    환불 요청 처리 (관리자 전용)
+
+    Args:
+        order_id: 주문 ID
+        request: 처리 액션 (approve 또는 reject)
+
+    Returns:
+        처리 결과 (성공 여부, 주문 정보, 최종 환불 상태)
+    """
+    try:
+        # 주문 조회
+        order = OrderRepository.get_order_by_id(db, order_id)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "code": "ORDER_NOT_FOUND",
+                    "message": "주문을 찾을 수 없습니다.",
+                },
+            )
+
+        # 환불 요청 상태 확인
+        if order.refund_status != "refund_requested":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "INVALID_REFUND_STATUS",
+                    "message": f"환불 요청 중인 주문이 아닙니다. (현재 상태: {order.refund_status})",
+                },
+            )
+
+        # 액션 처리
+        if request.action == "approve":
+            updated_order = OrderRepository.approve_refund(db, order_id)
+        elif request.action == "reject":
+            updated_order = OrderRepository.reject_refund(db, order_id)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "INVALID_ACTION",
+                    "message": "유효하지 않은 액션입니다. (approve 또는 reject)",
+                },
+            )
+
+        return ProcessRefundResponse(
+            success=True,
+            order_id=updated_order.id,
+            order_number=updated_order.order_number,
+            refund_status=updated_order.refund_status,
+            processed_at=updated_order.updated_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "REFUND_PROCESS_FAILED",
+                "message": f"환불 처리에 실패했습니다: {str(e)}",
             },
         )

@@ -16,6 +16,7 @@ const PaymentManagementPage: React.FC = () => {
   const [refunds, setRefunds] = useState<RefundRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const [authToken] = useState(sessionStorage.getItem('token') || '');
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -67,6 +68,40 @@ const PaymentManagementPage: React.FC = () => {
     }
   };
 
+  const handleProcessRefund = async (orderId: string, action: 'approve' | 'reject') => {
+    try {
+      setProcessingId(orderId);
+      setError(null);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/refunds/${orderId}/process`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (response.status === 401) {
+        setError('인증이 필요합니다. 다시 로그인해주세요.');
+        window.location.href = '/admin/login';
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail?.message || `환불 처리 실패: ${response.status}`);
+      }
+
+      // 성공 시 전체 목록 새로고침
+      await fetchRefundRequests();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '환불 처리 중 오류가 발생했습니다.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('ko-KR', {
       style: 'currency',
@@ -91,7 +126,9 @@ const PaymentManagementPage: React.FC = () => {
       case 'refund_requested':
         return 'status-pending';
       case 'refunded':
-        return 'status-completed';
+        return 'status-approved';
+      case 'refund_rejected':
+        return 'status-rejected';
       default:
         return 'status-default';
     }
@@ -103,9 +140,15 @@ const PaymentManagementPage: React.FC = () => {
         return '환불 대기 중';
       case 'refunded':
         return '환불 완료';
+      case 'refund_rejected':
+        return '환불 거절';
       default:
         return status;
     }
+  };
+
+  const canProcessRefund = (status: string) => {
+    return status === 'refund_requested';
   };
 
   return (
@@ -173,8 +216,26 @@ const PaymentManagementPage: React.FC = () => {
                     </td>
                     <td className="date-cell">{formatDate(refund.refund_requested_at)}</td>
                     <td className="action-cell">
-                      <button className="action-btn btn-approve">승인</button>
-                      <button className="action-btn btn-reject">거절</button>
+                      {canProcessRefund(refund.refund_status) ? (
+                        <>
+                          <button
+                            className="action-btn btn-approve"
+                            onClick={() => handleProcessRefund(refund.order_id, 'approve')}
+                            disabled={processingId === refund.order_id}
+                          >
+                            {processingId === refund.order_id ? '처리중...' : '승인'}
+                          </button>
+                          <button
+                            className="action-btn btn-reject"
+                            onClick={() => handleProcessRefund(refund.order_id, 'reject')}
+                            disabled={processingId === refund.order_id}
+                          >
+                            {processingId === refund.order_id ? '처리중...' : '거절'}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="action-status">처리 완료</span>
+                      )}
                     </td>
                   </tr>
                 ))}

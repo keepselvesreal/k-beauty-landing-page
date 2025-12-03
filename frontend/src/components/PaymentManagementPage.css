@@ -220,10 +220,16 @@
   border: 1px solid #ffeaa7;
 }
 
-.status-completed {
+.status-approved {
   background: #d4edda;
   color: #155724;
   border: 1px solid #c3e6cb;
+}
+
+.status-rejected {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
 .status-default {
@@ -236,6 +242,13 @@
   display: flex;
   gap: 8px;
   justify-content: center;
+  align-items: center;
+}
+
+.action-status {
+  font-size: 13px;
+  color: #7f8c8d;
+  font-weight: 600;
 }
 
 .action-btn {
@@ -268,6 +281,15 @@
 
 .btn-reject:hover {
   background: #ffebee;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-btn:disabled:hover {
+  background: inherit;
 }
 
 /* 반응형 디자인 */
