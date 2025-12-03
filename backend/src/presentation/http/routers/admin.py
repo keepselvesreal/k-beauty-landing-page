@@ -24,6 +24,8 @@ from ...schemas.admin import (
     ShipmentItem,
     ShipmentListResponse,
     CompleteShipmentResponse,
+    RefundItem,
+    RefundListResponse,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -413,5 +415,60 @@ async def complete_shipment(
             detail={
                 "code": "SHIPMENT_COMPLETE_FAILED",
                 "message": f"배송 완료 처리에 실패했습니다: {str(e)}",
+            },
+        )
+
+
+# ============================================
+# 환불 관리 엔드포인트
+# ============================================
+
+@router.get("/refunds", response_model=RefundListResponse)
+async def get_refund_requests(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    환불 요청 목록 조회 (관리자 전용)
+
+    Returns:
+        - refunds: 환불 요청 목록
+        - total_count: 전체 환불 요청 수
+    """
+    try:
+        orders = (
+            db.query(Order, Customer)
+            .join(Customer, Order.customer_id == Customer.id)
+            .filter(Order.refund_status == "refund_requested")
+            .order_by(Order.refund_requested_at.desc())
+            .all()
+        )
+
+        refund_items = []
+        for order, customer in orders:
+            refund_items.append(
+                RefundItem(
+                    refund_id=f"REF-{order.order_number.split('-')[1]}",
+                    order_id=order.id,
+                    order_number=order.order_number,
+                    customer_name=customer.name,
+                    total_price=float(order.total_price),
+                    refund_reason=order.refund_reason or "미입력",
+                    refund_status=order.refund_status,
+                    refund_requested_at=order.refund_requested_at,
+                )
+            )
+
+        return RefundListResponse(
+            refunds=refund_items,
+            total_count=len(refund_items),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "REFUND_FETCH_FAILED",
+                "message": f"환불 요청 조회에 실패했습니다: {str(e)}",
             },
         )

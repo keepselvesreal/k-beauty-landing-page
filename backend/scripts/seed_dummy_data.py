@@ -18,6 +18,7 @@ from scripts.seeders import (
     InventorySeeder,
     OrderSeeder,
     AffiliateSeeder,
+    RefundSeeder,
 )
 
 
@@ -97,6 +98,15 @@ def print_result(result: dict):
         print(f"    • 지급 완료: ₱30.00")
         print(f"    • 지급 예상: ₱50.00 (80 - 30)\n")
 
+    elif result["type"] == "refunds":
+        for order in result["data"]:
+            print(f"  • {order.order_number}")
+            print(f"    환불 ID: REF-{order.order_number.split('-')[1]}")
+            print(f"    고객: {order.customer.name}")
+            print(f"    환불 사유: {order.refund_reason}")
+            print(f"    요청 상태: {order.refund_status}")
+            print(f"    요청 날짜: {order.refund_requested_at}\n")
+
 
 def check_existing_data(db):
     """기존 데이터 확인"""
@@ -165,6 +175,11 @@ def seed_all(db):
     results["influencer"] = affiliate_seeder.seed()
     print_result(results["influencer"])
 
+    print_separator("9️⃣  환불 요청 데이터 생성 중...")
+    refund_seeder = RefundSeeder(db)
+    results["refunds"] = refund_seeder.seed(results["orders"])
+    print_result(results["refunds"])
+
     print_separator("✅ 모든 더미 데이터 생성 완료!")
 
 
@@ -216,6 +231,11 @@ def main():
         "--influencer",
         action="store_true",
         help="인플루언서 (어필리에이트) 테스트 계정 생성",
+    )
+    parser.add_argument(
+        "--refunds",
+        action="store_true",
+        help="환불 요청 데이터 생성 (orders 필요)",
     )
     parser.add_argument(
         "--check",
@@ -315,6 +335,16 @@ def main():
             results["influencer"] = affiliate_seeder.seed()
             print_result(results["influencer"])
 
+        if args.refunds:
+            if "orders" not in results:
+                print("❌ 환불 요청 생성을 위해 먼저 --orders를 실행하세요.")
+                return
+
+            print_separator("환불 요청 데이터 생성 중...")
+            refund_seeder = RefundSeeder(db)
+            results["refunds"] = refund_seeder.seed(results["orders"])
+            print_result(results["refunds"])
+
         if not any([
             args.products,
             args.users,
@@ -324,6 +354,7 @@ def main():
             args.inventory,
             args.orders,
             args.influencer,
+            args.refunds,
         ]):
             parser.print_help()
 

@@ -109,3 +109,24 @@ class CompleteShipmentResponse(BaseModel):
     order_number: str
     status: str
     delivered_at: datetime
+
+
+# ============================================
+# 환불 관리
+# ============================================
+class RefundItem(BaseModel):
+    """환불 요청 항목"""
+    refund_id: str  # order_id 기반의 환불 ID
+    order_id: UUID
+    order_number: str
+    customer_name: str
+    total_price: float
+    refund_reason: str
+    refund_status: str
+    refund_requested_at: datetime
+
+
+class RefundListResponse(BaseModel):
+    """환불 요청 목록 응답"""
+    refunds: list[RefundItem]
+    total_count: int

@@ -21,6 +21,7 @@ from src.persistence.models import (
     AffiliateClick,
     AffiliateSale,
     AffiliatePayment,
+    Shipment,
 )
 from src.workflow.services.authentication_service import AuthenticationService
 
@@ -542,3 +543,41 @@ class AffiliateSeeder(BaseSeeder):
         except Exception as e:
             self.db.rollback()
             raise e
+
+
+class RefundSeeder(BaseSeeder):
+    """환불 요청 Seeder"""
+
+    def seed(self, orders_result: Dict = None) -> Dict[str, Any]:
+        """
+        환불 요청 데이터 생성 (Order 생성 후)
+
+        주어진 주문들을 배송 완료 상태로 만들고, 일부를 환불 요청 상태로 변경
+        """
+        if not orders_result or "data" not in orders_result:
+            raise ValueError("환불 요청 생성을 위해 먼저 Order를 생성해야 합니다.")
+
+        orders = orders_result["data"]
+        created_refunds = []
+
+        # 각 주문에 대해 배송 완료 상태로 만들기
+        for idx, order in enumerate(orders):
+            # 배송 완료 상태로 변경
+            order.shipping_status = "delivered"
+            order.payment_status = "completed"
+            self.db.add(order)
+
+            # 첫 번째 주문을 환불 요청 상태로 변경
+            if idx == 0:
+                order.refund_status = "refund_requested"
+                order.refund_reason = "상품 불량"
+                order.refund_requested_at = datetime.utcnow()
+                created_refunds.append(order)
+
+        self.commit()
+
+        return {
+            "type": "refunds",
+            "count": len(created_refunds),
+            "data": created_refunds,
+        }
