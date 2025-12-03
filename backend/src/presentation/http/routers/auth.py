@@ -1,4 +1,4 @@
-"""인증 라우터 - Presentation Layer"""
+"""인증 라우터 - Presentation Layer (통합 버전)"""
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
@@ -11,7 +11,7 @@ from ....utils.auth import JWTTokenManager
 from ....utils.exceptions import AuthenticationError
 from ...schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest, ChangePasswordResponse
 
-router = APIRouter(prefix="/api/auth/fulfillment-partner", tags=["Authentication"])
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 class CurrentUserResponse(BaseModel):
@@ -25,7 +25,7 @@ def get_current_user(
     authorization: str = Header(None),
     db: Session = Depends(get_db),
 ) -> User:
-    """현재 사용자 정보 추출 (의존성)"""
+    """현재 사용자 정보 추출 (의존성) - 모든 역할 지원"""
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -77,11 +77,20 @@ def get_current_user(
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login_fulfillment_partner(
+async def login(
     credentials: LoginRequest,
     db: Session = Depends(get_db),
 ):
-    """배송담당자 로그인"""
+    """
+    통합 로그인 (모든 역할 지원)
+
+    Request:
+    {
+        "email": "user@example.com",
+        "password": "password123",
+        "role": "fulfillment-partner" or "influencer" or "admin"
+    }
+    """
     try:
         # Service 계층에서 인증 처리
         user = AuthenticationService.authenticate_user_by_email(
@@ -91,9 +100,8 @@ async def login_fulfillment_partner(
         )
 
         # 요청된 역할과 실제 역할이 일치하는지 검증
-        # DB의 role은 'fulfillment_partner' 형식, 요청의 role은 'fulfillment-partner' 형식
         user_actual_role = user.role.value if hasattr(user.role, 'value') else user.role
-        requested_role = credentials.role.replace('-', '_')  # 'fulfillment-partner' -> 'fulfillment_partner'
+        requested_role = credentials.role.replace('-', '_')
 
         if user_actual_role != requested_role:
             raise AuthenticationError(
@@ -101,10 +109,10 @@ async def login_fulfillment_partner(
                 message=f"사용자의 역할은 {user_actual_role}입니다. {credentials.role}로 로그인할 수 없습니다.",
             )
 
-        # 토큰 생성 - 실제 역할 사용
+        # 토큰 생성
         token_payload = {
             "user_id": str(user.id),
-            "role": user_actual_role,  # 실제 역할 사용
+            "role": user_actual_role,
             "email": user.email,
         }
         access_token = JWTTokenManager.create_access_token(token_payload)
@@ -128,7 +136,16 @@ async def login_fulfillment_partner(
 async def get_current_user_info(
     authorization: str = Header(None),
 ):
-    """현재 사용자 정보 조회"""
+    """
+    통합 사용자 정보 조회 (모든 역할 지원)
+
+    Returns:
+    {
+        "user_id": "uuid",
+        "email": "user@example.com",
+        "role": "fulfillment-partner" or "influencer" or "admin"
+    }
+    """
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -163,8 +180,7 @@ async def get_current_user_info(
             },
         )
 
-    # 토큰의 정보 반환 (검증된 역할 포함)
-    # 역할을 kebab-case로 변환 (fulfillment_partner -> fulfillment-partner)
+    # 토큰의 정보 반환 (역할을 kebab-case로 변환)
     role = payload.get("role", "").replace("_", "-")
     return {
         "user_id": payload.get("user_id"),
@@ -180,7 +196,7 @@ async def change_password(
     db: Session = Depends(get_db),
 ):
     """
-    비밀번호 변경 (모든 역할 지원)
+    비밀번호 변경 (통합, 모든 역할 지원)
 
     Request:
     {

@@ -37,12 +37,12 @@ export interface ChangePasswordResponse {
 }
 
 export const api = {
-  // 배송담당자 로그인 (토큰을 메모리에만 저장, 실제로는 HttpOnly 쿠키로 반환됨)
+  // 통합 로그인 (모든 역할)
   async loginFulfillmentPartner(email: string, password: string, role: string = 'fulfillment-partner') {
-    const response = await fetch(`${API_BASE_URL}/api/auth/fulfillment-partner/login`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // 쿠키 자동 포함
+      credentials: 'include',
       body: JSON.stringify({ email, password, role }),
     });
 
@@ -52,20 +52,18 @@ export const api = {
     }
 
     const data = await response.json();
-    // 토큰을 메모리에만 저장 (본 프로젝트에서 사용하지 않음)
-    // 실제 HttpOnly 쿠키는 백엔드가 관리함
     sessionStorage.setItem('token', data.access_token);
     return data;
   },
 
-  // 현재 사용자 정보 조회
+  // 통합 사용자 정보 조회 (모든 역할)
   async getCurrentUser(): Promise<CurrentUser> {
     const token = sessionStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/fulfillment-partner/me`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -197,14 +195,14 @@ export const api = {
     return await response.json();
   },
 
-  // 비밀번호 변경 (모든 역할 지원)
+  // 통합 비밀번호 변경 (모든 역할 지원)
   async changePassword(request: ChangePasswordRequest): Promise<ChangePasswordResponse> {
     const token = sessionStorage.getItem('token');
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/fulfillment-partner/change-password`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
