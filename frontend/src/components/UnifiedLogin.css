@@ -16,7 +16,9 @@
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   padding: 40px;
   width: 100%;
-  max-width: 400px;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .login-header {
@@ -169,11 +171,75 @@ form {
   font-weight: 600;
 }
 
-.demo-info p {
-  margin: 6px 0;
+.loading-text,
+.no-accounts-text {
   color: #666;
   font-size: 13px;
+  margin: 0;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* Test Accounts Table */
+.test-accounts-table {
+  overflow-x: auto;
+}
+
+.test-accounts-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.test-accounts-table thead {
+  background: #f5f7ff;
+  border-bottom: 1px solid #d0d8ff;
+}
+
+.test-accounts-table th {
+  padding: 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.test-accounts-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e8ecff;
+  color: #666;
+}
+
+.test-accounts-table tbody tr:hover {
+  background: #fafbff;
+}
+
+.email-cell {
   font-family: 'Courier New', monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.use-btn {
+  padding: 4px 8px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.use-btn:hover {
+  background: #5568d3;
+  transform: scale(1.05);
+}
+
+.use-btn:active {
+  transform: scale(0.95);
 }
 
 .back-link {
@@ -197,6 +263,7 @@ form {
 @media (max-width: 480px) {
   .login-box {
     padding: 30px 20px;
+    max-width: 100%;
   }
 
   .login-header {
@@ -211,5 +278,19 @@ form {
 
   .login-box h1 {
     font-size: 24px;
+  }
+
+  .test-accounts-table {
+    font-size: 11px;
+  }
+
+  .test-accounts-table th,
+  .test-accounts-table td {
+    padding: 6px;
+  }
+
+  .use-btn {
+    padding: 3px 6px;
+    font-size: 10px;
   }
 }

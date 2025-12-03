@@ -3,9 +3,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import List
 
 from ....persistence.database import get_db
-from ....persistence.models import User
+from ....persistence.models import User, FulfillmentPartner, Affiliate
 from ....workflow.services.authentication_service import AuthenticationService
 from ....utils.auth import JWTTokenManager
 from ....utils.exceptions import AuthenticationError
@@ -19,6 +20,14 @@ class CurrentUserResponse(BaseModel):
     user_id: str
     email: str
     role: str
+
+
+class TestAccountResponse(BaseModel):
+    """테스트 계정 정보 응답"""
+    email: str
+    password: str
+    role: str
+    name: str
 
 
 def get_current_user(
@@ -245,5 +254,81 @@ async def change_password(
             detail={
                 "code": "INTERNAL_ERROR",
                 "message": f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}",
+            },
+        )
+
+
+@router.get("/test-accounts", response_model=List[TestAccountResponse])
+async def get_test_accounts(db: Session = Depends(get_db)):
+    """
+    현재 등록된 테스트 계정 조회 (배송담당자, 인플루언서)
+
+    더미 데이터가 생성되거나 변경되면 항상 최신 정보를 반환합니다.
+    password는 seeders.py의 규칙에 따라 생성됩니다:
+    - 배송담당자: Partner@{region}123
+    - 인플루언서: test123456
+
+    Returns:
+    [
+        {
+            "email": "ncr.partner@example.com",
+            "password": "Partner@NCR123",
+            "role": "fulfillment-partner",
+            "name": "조선미녀 필리핀 배송담당자"
+        },
+        {
+            "email": "influencer@example.com",
+            "password": "test123456",
+            "role": "influencer",
+            "name": "Kim Taesoo (인플루언서)"
+        }
+    ]
+    """
+    try:
+        test_accounts = []
+
+        # 배송담당자 계정 조회
+        fulfillment_partners = (
+            db.query(User, FulfillmentPartner)
+            .join(FulfillmentPartner, User.id == FulfillmentPartner.user_id)
+            .filter(User.role == "fulfillment_partner")
+            .all()
+        )
+
+        for user, partner in fulfillment_partners:
+            # seeders.py 규칙: password = f"Partner@{partner_data['region']}123"
+            password = f"Partner@{partner.region}123"
+            test_accounts.append({
+                "email": user.email,
+                "password": password,
+                "role": "fulfillment-partner",
+                "name": partner.name,
+            })
+
+        # 인플루언서 계정 조회
+        influencers = (
+            db.query(User, Affiliate)
+            .join(Affiliate, User.id == Affiliate.user_id)
+            .filter(User.role == "influencer")
+            .all()
+        )
+
+        for user, affiliate in influencers:
+            # seeders.py 규칙: password = "test123456"
+            test_accounts.append({
+                "email": user.email,
+                "password": "test123456",
+                "role": "influencer",
+                "name": affiliate.name,
+            })
+
+        return test_accounts
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": f"테스트 계정 조회 중 오류가 발생했습니다: {str(e)}",
             },
         )

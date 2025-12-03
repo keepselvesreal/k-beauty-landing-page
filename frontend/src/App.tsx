@@ -6,7 +6,7 @@ import OrderForm from './components/OrderForm';
 import OrderConfirmation from './components/OrderConfirmation';
 import StaffAccountManagement from './components/StaffAccountManagement';
 import AdminDashboard from './components/AdminDashboard';
-import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
+import UnifiedLogin from './components/UnifiedLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
 import InfluencerDashboard from './components/InfluencerDashboard';
 import ChangePassword from './components/ChangePassword';
@@ -62,7 +62,7 @@ const App: React.FC = () => {
       {!isAdminPage && !isLoginPage && !isDashboardPage && !isSettingsPage && <Header />}
       <main>
         {isLoginPage ? (
-          <FulfillmentPartnerLogin onLoginSuccess={handleLoginSuccess} />
+          <UnifiedLogin onLoginSuccess={handleLoginSuccess} />
         ) : isSettingsPage && isLoggedIn ? (
           userLoading ? (
             <div className="flex items-center justify-center h-screen">
