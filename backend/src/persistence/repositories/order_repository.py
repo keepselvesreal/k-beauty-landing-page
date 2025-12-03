@@ -166,7 +166,7 @@ class OrderRepository:
         조건:
         - fulfillment_partner_id와 일치
         - payment_status = 'completed' (결제 완료)
-        - shipping_status = 'preparing' (배송 대기 중)
+        - 모든 배송 상태의 주문 포함 (preparing, in_transit, shipped, delivered)
         - 생성 날짜 역순 정렬 (최신 먼저)
 
         Args:
@@ -179,7 +179,6 @@ class OrderRepository:
         orders = db.query(Order).filter(
             Order.fulfillment_partner_id == fulfillment_partner_id,
             Order.payment_status == "completed",
-            Order.shipping_status == "preparing",
         ).order_by(
             Order.created_at.desc()
         ).all()

@@ -22,6 +22,7 @@ from src.persistence.models import (
     AffiliateSale,
     AffiliatePayment,
     Shipment,
+    ShippingCommissionPayment,
 )
 from src.workflow.services.authentication_service import AuthenticationService
 
@@ -96,11 +97,18 @@ class UserSeeder(BaseSeeder):
         if partners_data is None:
             partners_data = [
                 {
-                    "name": "조선미녀 필리핀 배송담당자",
+                    "name": "조선미녀 필리핀 배송담당자 - NCR",
                     "email": "ncr.partner@example.com",
                     "phone": "+63-917-123-4567",
                     "address": "Manila Business District, Metro Manila",
                     "region": "NCR",
+                },
+                {
+                    "name": "조선미녀 필리핀 배송담당자 - Visayas",
+                    "email": "visayas.partner@example.com",
+                    "phone": "+63-917-234-5678",
+                    "address": "Cebu IT Park, Cebu City",
+                    "region": "Visayas",
                 },
             ]
 
@@ -359,21 +367,98 @@ class OrderSeeder(BaseSeeder):
 
         if orders_data is None:
             orders_data = [
+                # 배송 준비 중 (preparing) - 배송담당자 1 (NCR)
                 {
                     "customer_index": 0,  # Maria Santos
-                    "partner_name": "조선미녀 필리핀 배송담당자",
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
                     "items": [
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
                     ],
                     "shipping_fee": Decimal("100"),
+                    "shipping_status": "preparing",
+                    "shipping_commission": Decimal("20"),
                 },
                 {
                     "customer_index": 1,  # Juan Dela Cruz
-                    "partner_name": "조선미녀 필리핀 배송담당자",
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
                     "items": [
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
                     ],
                     "shipping_fee": Decimal("100"),
+                    "shipping_status": "preparing",
+                    "shipping_commission": Decimal("20"),
+                },
+                {
+                    "customer_index": 2,  # Rosa Garcia
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 3},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "preparing",
+                    "shipping_commission": Decimal("20"),
+                },
+                # 배송 중 (in_transit) - 배송담당자 1 (NCR)
+                {
+                    "customer_index": 0,  # Maria Santos
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "in_transit",
+                    "shipping_commission": Decimal("20"),
+                },
+                {
+                    "customer_index": 1,  # Juan Dela Cruz
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "in_transit",
+                    "shipping_commission": Decimal("20"),
+                },
+                {
+                    "customer_index": 2,  # Rosa Garcia
+                    "partner_name": "조선미녀 필리핀 배송담당자 - NCR",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
+                    ],
+                    "shipping_fee": Decimal("100"),
+                    "shipping_status": "in_transit",
+                    "shipping_commission": Decimal("20"),
+                },
+                # 배송 완료 (delivered) - 배송담당자 2 (Visayas)
+                {
+                    "customer_index": 0,  # Maria Santos
+                    "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
+                    ],
+                    "shipping_fee": Decimal("120"),
+                    "shipping_status": "delivered",
+                    "shipping_commission": Decimal("25"),
+                },
+                {
+                    "customer_index": 1,  # Juan Dela Cruz
+                    "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 3},
+                    ],
+                    "shipping_fee": Decimal("120"),
+                    "shipping_status": "delivered",
+                    "shipping_commission": Decimal("25"),
+                },
+                {
+                    "customer_index": 2,  # Rosa Garcia
+                    "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
+                    "items": [
+                        {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 1},
+                    ],
+                    "shipping_fee": Decimal("120"),
+                    "shipping_status": "delivered",
+                    "shipping_commission": Decimal("25"),
                 },
             ]
 
@@ -413,6 +498,8 @@ class OrderSeeder(BaseSeeder):
 
             shipping_fee = order_data.get("shipping_fee", Decimal("0"))
             total_price = subtotal + shipping_fee
+            shipping_status = order_data.get("shipping_status", "preparing")
+            shipping_commission = order_data.get("shipping_commission", Decimal("0"))
 
             order = Order(
                 id=uuid4(),
@@ -423,11 +510,12 @@ class OrderSeeder(BaseSeeder):
                 shipping_fee=shipping_fee,
                 total_price=total_price,
                 payment_status="completed",
-                shipping_status="preparing",
+                shipping_status=shipping_status,
                 paypal_order_id=f"PAYPAL-{uuid4().hex[:8].upper()}",
                 paypal_capture_id=f"CAPTURE-{uuid4().hex[:8].upper()}",
                 paypal_transaction_fee=subtotal * Decimal("0.034"),  # 3.4% 수수료
                 total_profit=total_profit,
+                shipping_commission=shipping_commission,
                 paid_at=datetime.utcnow(),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
@@ -462,99 +550,165 @@ class OrderSeeder(BaseSeeder):
 class AffiliateSeeder(BaseSeeder):
     """인플루언서 (어필리에이트) Seeder"""
 
-    def seed(self, affiliate_data: Dict = None) -> Dict[str, Any]:
+    def seed(self, affiliates_data: List[Dict] = None, orders_result: Dict = None) -> Dict[str, Any]:
         """인플루언서 및 어필리에이트 데이터 생성"""
-        if affiliate_data is None:
-            affiliate_data = {
-                "email": "influencer@example.com",
-                "password": "test123456",
-                "code": "santa-here-kim_influencer",
-                "name": "Kim Taesoo (인플루언서)",
-            }
+        if affiliates_data is None:
+            affiliates_data = [
+                {
+                    "email": "influencer1@example.com",
+                    "password": "test123456",
+                    "code": "influencer-no-payment",
+                    "name": "Influencer No Payment",
+                    "has_pending_payment": False,
+                },
+                {
+                    "email": "influencer2@example.com",
+                    "password": "test123456",
+                    "code": "influencer-with-payment",
+                    "name": "Influencer With Payment",
+                    "has_pending_payment": True,
+                },
+            ]
 
         try:
-            # 1. 사용자 생성
-            password_hash = AuthenticationService.hash_password(affiliate_data["password"])
-            user = User(
-                id=uuid4(),
-                email=affiliate_data["email"],
-                password_hash=password_hash,
-                role="influencer",
-                is_active=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            self.db.add(user)
-            self.flush()
+            created_affiliates = []
+            credentials = []
+            orders = orders_result["data"] if orders_result and "data" in orders_result else []
 
-            # 2. 어필리에이트 생성
-            affiliate = Affiliate(
-                id=uuid4(),
-                user_id=user.id,
-                code=affiliate_data["code"],
-                name=affiliate_data["name"],
-                email=affiliate_data["email"],
-                is_active=True,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            self.db.add(affiliate)
-            self.flush()
-
-            # 3. 테스트 클릭 데이터 생성 (150개)
-            for i in range(150):
-                click = AffiliateClick(
+            for idx, affiliate_data in enumerate(affiliates_data):
+                # 1. 사용자 생성
+                password_hash = AuthenticationService.hash_password(affiliate_data["password"])
+                user = User(
                     id=uuid4(),
-                    affiliate_id=affiliate.id,
-                    clicked_at=datetime.utcnow() - timedelta(days=30 - (i // 5)),
+                    email=affiliate_data["email"],
+                    password_hash=password_hash,
+                    role="influencer",
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
                 )
-                self.db.add(click)
+                self.db.add(user)
+                self.flush()
 
-            # 4. 테스트 판매 데이터 생성 (5건)
-            # Note: AffiliateSale의 order_id는 필수 외래키이므로 실제 orders가 필요함
-            # 테스트 목적이므로 실제 판매 데이터는 대시보드에서 주문 생성 시 자동으로 추가됨
-            # for i in range(5):
-            #     sale = AffiliateSale(
-            #         id=uuid4(),
-            #         affiliate_id=affiliate.id,
-            #         order_id=...,  # 실제 order ID 필요
-            #         commission_amount=Decimal("16.00"),
-            #         created_at=datetime.utcnow(),
-            #     )
-            #     self.db.add(sale)
+                # 2. 어필리에이트 생성
+                affiliate = Affiliate(
+                    id=uuid4(),
+                    user_id=user.id,
+                    code=affiliate_data["code"],
+                    name=affiliate_data["name"],
+                    email=affiliate_data["email"],
+                    is_active=True,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                self.db.add(affiliate)
+                self.flush()
 
-            # 5. 테스트 지급 데이터 생성 (부분 지급: 30)
-            payment = AffiliatePayment(
-                id=uuid4(),
-                affiliate_id=affiliate.id,
-                amount=Decimal("30.00"),
-                status="completed",
-                payment_method="PayPal",
-                paid_at=datetime.utcnow() - timedelta(days=15),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            self.db.add(payment)
+                # 3. 테스트 클릭 데이터 생성 (150개)
+                for i in range(150):
+                    click = AffiliateClick(
+                        id=uuid4(),
+                        affiliate_id=affiliate.id,
+                        clicked_at=datetime.utcnow() - timedelta(days=30 - (i // 5)),
+                    )
+                    self.db.add(click)
 
-            self.commit()
+                # 4. 지급 예정액이 있는 인플루언서의 경우 판매 데이터 생성
+                if affiliate_data.get("has_pending_payment") and orders:
+                    # 처음 3개 주문에 대해 판매 데이터 생성
+                    for order_idx in range(min(3, len(orders))):
+                        sale = AffiliateSale(
+                            id=uuid4(),
+                            affiliate_id=affiliate.id,
+                            order_id=orders[order_idx].id,
+                            marketing_commission=Decimal("15.00"),
+                            created_at=datetime.utcnow(),
+                        )
+                        self.db.add(sale)
 
-            return {
-                "type": "influencer",
-                "count": 1,
-                "data": {
-                    "user": user,
-                    "affiliate": affiliate,
-                },
-                "credentials": {
+                    # 5. 미지급 상태의 지급 데이터 생성 (지급 예정액)
+                    payment = AffiliatePayment(
+                        id=uuid4(),
+                        affiliate_id=affiliate.id,
+                        amount=Decimal("45.00"),
+                        status="pending",
+                        payment_method="PayPal",
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                    )
+                    self.db.add(payment)
+                else:
+                    # 지급 예정액이 없는 경우는 아무것도 하지 않음
+                    pass
+
+                created_affiliates.append(affiliate)
+                credentials.append({
                     "email": affiliate_data["email"],
                     "password": affiliate_data["password"],
                     "user_id": str(user.id),
                     "affiliate_code": affiliate_data["code"],
-                },
+                })
+
+            self.commit()
+
+            return {
+                "type": "influencers",
+                "count": len(created_affiliates),
+                "data": created_affiliates,
+                "credentials": credentials,
             }
         except Exception as e:
             self.db.rollback()
             raise e
+
+
+class ShippingCommissionPaymentSeeder(BaseSeeder):
+    """배송담당자 커미션 지급 Seeder"""
+
+    def seed(self, partners_result: Dict = None, orders_result: Dict = None) -> Dict[str, Any]:
+        """
+        배송담당자 커미션 지급 데이터 생성
+
+        배송담당자 1 (NCR): 미지급 상태의 커미션 (지급 예정액 있음)
+        배송담당자 2 (Visayas): 지급 데이터 없음 (지급 예정액 없음)
+        """
+        if not partners_result or "data" not in partners_result:
+            raise ValueError("ShippingCommissionPayment 생성을 위해 먼저 FulfillmentPartner를 생성해야 합니다.")
+
+        partners_dict = partners_result["data"]
+        created_payments = []
+
+        # 배송담당자 1 (NCR)의 처리 주문들로부터 미지급 커미션 계산
+        partner_1_name = "조선미녀 필리핀 배송담당자 - NCR"
+        if partner_1_name in partners_dict:
+            partner_1 = partners_dict[partner_1_name]
+
+            # 배송담당자 1은 preparing과 in_transit 상태의 주문 6개를 처리
+            # 각 주문당 20 USD의 커미션 = 총 120 USD의 미지급 커미션
+            total_commission = Decimal("120.00")  # 6개 주문 * 20 USD
+
+            payment = ShippingCommissionPayment(
+                id=uuid4(),
+                fulfillment_partner_id=partner_1.id,
+                amount=total_commission,
+                status="pending",
+                payment_method="PayPal",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            self.db.add(payment)
+            created_payments.append(payment)
+
+        # 배송담당자 2 (Visayas): 아무 지급 데이터도 생성하지 않음
+        # (이미 배송 완료된 주문들이지만, 지급 예정액이 없다는 시나리오)
+
+        self.commit()
+
+        return {
+            "type": "shipping_commission_payments",
+            "count": len(created_payments),
+            "data": created_payments,
+        }
 
 
 class RefundSeeder(BaseSeeder):

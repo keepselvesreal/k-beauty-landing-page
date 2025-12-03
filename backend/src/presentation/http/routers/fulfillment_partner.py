@@ -111,7 +111,7 @@ async def get_fulfillment_partner_orders(
     조회 조건:
     - 본인 배송담당자에게만 할당된 주문
     - payment_status = 'completed' (결제 완료)
-    - shipping_status = 'preparing' (배송 대기 중)
+    - 모든 배송 상태의 주문 포함 (preparing, in_transit, shipped, delivered)
     - 생성 날짜 역순 정렬 (최신 먼저)
 
     Returns:

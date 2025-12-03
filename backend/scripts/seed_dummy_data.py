@@ -18,6 +18,7 @@ from scripts.seeders import (
     InventorySeeder,
     OrderSeeder,
     AffiliateSeeder,
+    ShippingCommissionPaymentSeeder,
     RefundSeeder,
 )
 
@@ -84,19 +85,20 @@ def print_result(result: dict):
             print(f"    상태: {order.shipping_status}")
             print(f"    ID: {order.id}\n")
 
-    elif result["type"] == "influencer":
-        creds = result["credentials"]
-        print(f"  • {creds['email']}")
-        print(f"    📧 Email: {creds['email']}")
-        print(f"    🔑 Password: {creds['password']}")
-        print(f"    📝 Affiliate Code: {creds['affiliate_code']}")
-        print(f"    ID: {creds['user_id']}\n")
-        print(f"  테스트 데이터:")
-        print(f"    • 클릭 수: 150")
-        print(f"    • 판매 건수: 5")
-        print(f"    • 누적 수익: ₱80.00 (16 × 5)")
-        print(f"    • 지급 완료: ₱30.00")
-        print(f"    • 지급 예상: ₱50.00 (80 - 30)\n")
+    elif result["type"] == "influencers":
+        for creds in result["credentials"]:
+            print(f"  • {creds['email']}")
+            print(f"    📧 Email: {creds['email']}")
+            print(f"    🔑 Password: {creds['password']}")
+            print(f"    📝 Affiliate Code: {creds['affiliate_code']}")
+            print(f"    ID: {creds['user_id']}\n")
+
+    elif result["type"] == "shipping_commission_payments":
+        for payment in result["data"]:
+            print(f"  • 배송담당자: {payment.fulfillment_partner.name}")
+            print(f"    금액: ${payment.amount}")
+            print(f"    상태: {payment.status}")
+            print(f"    ID: {payment.id}\n")
 
     elif result["type"] == "refunds":
         for order in result["data"]:
@@ -172,10 +174,17 @@ def seed_all(db):
 
     print_separator("8️⃣  인플루언서 테스트 계정 생성 중...")
     affiliate_seeder = AffiliateSeeder(db)
-    results["influencer"] = affiliate_seeder.seed()
-    print_result(results["influencer"])
+    results["influencers"] = affiliate_seeder.seed(orders_result=results["orders"])
+    print_result(results["influencers"])
 
-    print_separator("9️⃣  환불 요청 데이터 생성 중...")
+    print_separator("9️⃣  배송담당자 커미션 지급 데이터 생성 중...")
+    commission_seeder = ShippingCommissionPaymentSeeder(db)
+    results["shipping_commissions"] = commission_seeder.seed(
+        results["partners"], results["orders"]
+    )
+    print_result(results["shipping_commissions"])
+
+    print_separator("🔟  환불 요청 데이터 생성 중...")
     refund_seeder = RefundSeeder(db)
     results["refunds"] = refund_seeder.seed(results["orders"])
     print_result(results["refunds"])
@@ -231,6 +240,11 @@ def main():
         "--influencer",
         action="store_true",
         help="인플루언서 (어필리에이트) 테스트 계정 생성",
+    )
+    parser.add_argument(
+        "--shipping-commissions",
+        action="store_true",
+        help="배송담당자 커미션 지급 데이터 생성 (partners, orders 필요)",
     )
     parser.add_argument(
         "--refunds",
@@ -332,8 +346,22 @@ def main():
         if args.influencer:
             print_separator("인플루언서 테스트 계정 생성 중...")
             affiliate_seeder = AffiliateSeeder(db)
-            results["influencer"] = affiliate_seeder.seed()
-            print_result(results["influencer"])
+            results["influencers"] = affiliate_seeder.seed(
+                orders_result=results.get("orders")
+            )
+            print_result(results["influencers"])
+
+        if args.shipping_commissions:
+            if "partners" not in results or "orders" not in results:
+                print("❌ 배송담당자 커미션 생성을 위해 먼저 --partners와 --orders를 실행하세요.")
+                return
+
+            print_separator("배송담당자 커미션 지급 데이터 생성 중...")
+            commission_seeder = ShippingCommissionPaymentSeeder(db)
+            results["shipping_commissions"] = commission_seeder.seed(
+                results["partners"], results["orders"]
+            )
+            print_result(results["shipping_commissions"])
 
         if args.refunds:
             if "orders" not in results:
@@ -354,6 +382,7 @@ def main():
             args.inventory,
             args.orders,
             args.influencer,
+            args.shipping_commissions,
             args.refunds,
         ]):
             parser.print_help()
