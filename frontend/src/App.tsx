@@ -5,6 +5,7 @@ import Testimonials from './components/Testimonials';
 import OrderForm from './components/OrderForm';
 import OrderConfirmation from './components/OrderConfirmation';
 import AdminPanel from './components/AdminPanel';
+import AdminDashboard from './components/AdminDashboard';
 import FulfillmentPartnerLogin from './components/FulfillmentPartnerLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
 import InfluencerDashboard from './components/InfluencerDashboard';
@@ -80,11 +81,13 @@ const App: React.FC = () => {
               <FulfillmentPartnerDashboard />
             ) : currentUser.role === 'influencer' ? (
               <InfluencerDashboard />
+            ) : currentUser.role === 'admin' ? (
+              <AdminDashboard />
             ) : (
               <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
-                  <h1 className="text-3xl font-bold mb-4">어드민 대시보드</h1>
-                  <p className="text-gray-600">어드민 대시보드 개발 중입니다.</p>
+                  <h1 className="text-3xl font-bold mb-4">알 수 없는 역할</h1>
+                  <p className="text-gray-600">사용자 역할을 인식할 수 없습니다.</p>
                 </div>
               </div>
             )

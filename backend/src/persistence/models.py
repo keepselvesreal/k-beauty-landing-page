@@ -125,6 +125,26 @@ class PartnerAllocatedInventory(Base):
     # 관계
     partner = relationship("FulfillmentPartner", back_populates="allocated_inventory")
     product = relationship("Product", back_populates="allocated_inventory")
+    adjustment_logs = relationship("InventoryAdjustmentLog", back_populates="inventory")
+
+
+# ============================================
+# 5-1. Inventory Adjustment Logs (재고 조정 이력)
+# ============================================
+class InventoryAdjustmentLog(Base):
+    __tablename__ = "inventory_adjustment_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    inventory_id = Column(UUID(as_uuid=True), ForeignKey("partner_allocated_inventory.id"), nullable=False, index=True)
+    old_quantity = Column(Integer, nullable=False)
+    new_quantity = Column(Integer, nullable=False)
+    adjusted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 관계
+    inventory = relationship("PartnerAllocatedInventory", back_populates="adjustment_logs")
+    admin = relationship("User")
 
 
 # ============================================

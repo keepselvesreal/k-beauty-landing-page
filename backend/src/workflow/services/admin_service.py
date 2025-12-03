@@ -30,8 +30,8 @@ class AdminService:
                 message="이미 등록된 이메일입니다.",
             )
 
-        # 2. 역할 유효성 검증 (fulfillment_partner, influencer만 허용)
-        valid_roles = ["fulfillment_partner", "influencer"]
+        # 2. 역할 유효성 검증 (fulfillment_partner, influencer, admin 허용)
+        valid_roles = ["fulfillment_partner", "influencer", "admin"]
         if role not in valid_roles:
             raise AuthenticationError(
                 code="INVALID_ROLE",
