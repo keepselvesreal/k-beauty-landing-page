@@ -43,6 +43,7 @@ class FulfillmentPartnerOrdersListResponse(BaseModel):
     """배송담당자 주문 목록 응답"""
     partner_id: UUID
     partner_name: str
+    partner_email: str
     orders: list[FulfillmentPartnerOrderResponse]
 
     class Config:

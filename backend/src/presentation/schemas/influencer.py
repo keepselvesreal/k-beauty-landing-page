@@ -40,20 +40,3 @@ class AffiliateClickResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class InfluencerInquiryRequest(BaseModel):
-    """인플루언서 문의 요청"""
-    message: str  # 문의 내용
-
-    class Config:
-        from_attributes = True
-
-
-class InfluencerInquiryResponse(BaseModel):
-    """인플루언서 문의 응답"""
-    status: str  # "sent" 또는 "failed"
-    message: str
-
-    class Config:
-        from_attributes = True

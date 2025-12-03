@@ -11,12 +11,9 @@ from src.presentation.schemas.influencer import (
     InfluencerDashboardResponse,
     AffiliateClickRequest,
     AffiliateClickResponse,
-    InfluencerInquiryRequest,
-    InfluencerInquiryResponse,
 )
 from src.utils.auth import JWTTokenManager
 from src.utils.exceptions import AuthenticationError
-from src.workflow.services.email_service import EmailService
 from src.config import settings
 
 router = APIRouter(prefix="/api/influencer", tags=["Influencer"])
@@ -213,63 +210,4 @@ async def track_affiliate_click(
         return AffiliateClickResponse(
             status="error",
             message=f"클릭 기록 중 오류가 발생했습니다: {str(e)}",
-        )
-
-
-@router.post("/inquiry", response_model=InfluencerInquiryResponse)
-async def send_influencer_inquiry(
-    request: InfluencerInquiryRequest,
-    current_affiliate: Affiliate = Depends(get_current_influencer),
-    db: Session = Depends(get_db),
-):
-    """
-    인플루언서 문의 발송
-
-    Request:
-    {
-        "message": "수수료 계산이 잘못된 것 같습니다"
-    }
-
-    Response:
-    {
-        "status": "sent",
-        "message": "문의가 발송되었습니다"
-    }
-    """
-    try:
-        # 메시지 검증
-        if not request.message or not request.message.strip():
-            raise ValueError("메시지 내용이 비어있습니다")
-
-        # 관리자에게 문의 이메일 발송
-        email_sent = EmailService.send_influencer_inquiry_email(
-            affiliate_code=current_affiliate.code,
-            affiliate_email=current_affiliate.email,
-            message=request.message,
-            admin_email=settings.ADMIN_EMAIL,
-        )
-
-        if email_sent:
-            return InfluencerInquiryResponse(
-                status="sent",
-                message="문의가 발송되었습니다",
-            )
-        else:
-            return InfluencerInquiryResponse(
-                status="failed",
-                message="이메일 발송에 실패했습니다",
-            )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "code": "INVALID_MESSAGE",
-                "message": str(e),
-            },
-        )
-    except Exception as e:
-        return InfluencerInquiryResponse(
-            status="failed",
-            message=f"문의 발송 중 오류가 발생했습니다: {str(e)}",
         )

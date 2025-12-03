@@ -175,6 +175,7 @@ async def get_fulfillment_partner_orders(
     return FulfillmentPartnerOrdersListResponse(
         partner_id=current_partner.id,
         partner_name=current_partner.name,
+        partner_email=current_partner.email,
         orders=orders_response,
     )
 

@@ -430,3 +430,19 @@ class ShippingCommissionPayment(Base):
 
     # 관계
     fulfillment_partner = relationship("FulfillmentPartner")
+
+
+# ============================================
+# 19. Inquiries (문의)
+# ============================================
+class Inquiry(Base):
+    __tablename__ = "inquiries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    inquiry_type = Column(String(50), nullable=False, index=True)  # "influencer", "fulfillment_partner", "customer"
+    sender_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # 로그인한 사용자 ID (nullable)
+    reply_to_email = Column(String(255), nullable=False, index=True)  # 회신받을 이메일
+    message = Column(Text, nullable=False)  # 문의 내용
+    status = Column(String(50), default="unread", index=True)  # "unread", "read"
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

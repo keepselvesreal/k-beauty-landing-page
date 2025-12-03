@@ -1,0 +1,238 @@
+.inquiry-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.inquiry-modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inquiry-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.inquiry-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.inquiry-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.inquiry-modal-close:hover:not(:disabled) {
+  color: #333;
+}
+
+.inquiry-modal-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.inquiry-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.email-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.form-group input[type="email"],
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.form-group input[type="email"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+.form-group input[type="email"].auto-filled {
+  background: #f0f8f4;
+  cursor: not-allowed;
+}
+
+.form-group input[type="email"]:disabled,
+.form-group textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  color: #999;
+}
+
+.email-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.email-clear-btn:hover:not(:disabled) {
+  color: #d32f2f;
+}
+
+.email-clear-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.inquiry-error {
+  padding: 12px;
+  margin-bottom: 15px;
+  background: #ffebee;
+  color: #d32f2f;
+  border-radius: 6px;
+  font-size: 14px;
+  border-left: 4px solid #d32f2f;
+}
+
+.inquiry-success {
+  padding: 12px;
+  margin-bottom: 15px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  border-radius: 6px;
+  font-size: 14px;
+  border-left: 4px solid #4CAF50;
+}
+
+.inquiry-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.btn-cancel,
+.btn-submit {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btn-cancel:hover:not(:disabled) {
+  background: #d0d0d0;
+}
+
+.btn-cancel:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-submit {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-submit:hover:not(:disabled) {
+  background: #45a049;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-submit:disabled {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 600px) {
+  .inquiry-modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .inquiry-modal-header {
+    padding: 16px;
+  }
+
+  .inquiry-modal-body {
+    padding: 16px;
+  }
+
+  .inquiry-modal-footer {
+    padding: 12px 16px;
+  }
+
+  .form-group input[type="email"],
+  .form-group textarea {
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+}

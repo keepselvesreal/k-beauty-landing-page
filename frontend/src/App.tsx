@@ -10,6 +10,7 @@ import UnifiedLogin from './components/UnifiedLogin';
 import FulfillmentPartnerDashboard from './components/FulfillmentPartnerDashboard';
 import InfluencerDashboard from './components/InfluencerDashboard';
 import ChangePassword from './components/ChangePassword';
+import ContactFloatingButton from './components/ContactFloatingButton';
 import { api, CurrentUser } from './utils/api';
 
 const App: React.FC = () => {
@@ -105,6 +106,7 @@ const App: React.FC = () => {
             <ProductHero />
             <Testimonials />
             <OrderForm />
+            <ContactFloatingButton />
           </>
         )}
       </main>

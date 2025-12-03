@@ -4,6 +4,7 @@ import InventoryManagementPage from './InventoryManagementPage';
 import StaffAccountManagement from './StaffAccountManagement';
 import ShippingManagementPage from './ShippingManagementPage';
 import PaymentManagementPage from './PaymentManagementPage';
+import InquiryManagementPage from './InquiryManagementPage';
 
 type PageType = 'dashboard' | 'inventory' | 'payment' | 'shipment' | 'inquiry' | 'accounts';
 
@@ -72,16 +73,7 @@ const AdminDashboard: React.FC = () => {
       case 'payment':
         return <PaymentManagementPage />;
       case 'inquiry':
-        return (
-          <div className="admin-dashboard">
-            <div className="dashboard-header">
-              <h1>{menuItems.find(m => m.id === currentPage)?.label}</h1>
-            </div>
-            <div className="empty-state">
-              <p>준비 중인 페이지입니다.</p>
-            </div>
-          </div>
-        );
+        return <InquiryManagementPage />;
       default:
         return <DashboardHub metrics={dashboardMetrics} refundRequests={refundRequests} />;
     }

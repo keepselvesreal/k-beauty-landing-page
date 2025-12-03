@@ -18,15 +18,6 @@ export interface InfluencerDashboard {
   next_payment_date: string;
 }
 
-export interface InfluencerInquiryRequest {
-  message: string;
-}
-
-export interface InfluencerInquiryResponse {
-  status: string;
-  message: string;
-}
-
 export interface ChangePasswordRequest {
   current_password: string;
   new_password: string;
@@ -34,6 +25,36 @@ export interface ChangePasswordRequest {
 
 export interface ChangePasswordResponse {
   message: string;
+}
+
+export interface InquiryRequest {
+  inquiry_type: string;
+  message: string;
+  reply_to_email?: string;
+}
+
+export interface InquiryResponse {
+  status: string;
+  message: string;
+  inquiry_id?: string;
+}
+
+export interface InquiryDetail {
+  id: string;
+  inquiry_type: string;
+  sender_id?: string;
+  reply_to_email: string;
+  message: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InquiriesListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  inquiries: InquiryDetail[];
 }
 
 export const api = {
@@ -166,35 +187,6 @@ export const api = {
     return await response.json();
   },
 
-  // 인플루언서 문의 발송
-  async sendInfluencerInquiry(message: string): Promise<InfluencerInquiryResponse> {
-    const token = sessionStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/api/influencer/inquiry`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ message }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        sessionStorage.removeItem('token');
-        throw new Error('Unauthorized - please log in again');
-      }
-      const error = await response.json();
-      throw new Error(error.detail?.message || 'Failed to send inquiry');
-    }
-
-    return await response.json();
-  },
-
   // 통합 비밀번호 변경 (모든 역할 지원)
   async changePassword(request: ChangePasswordRequest): Promise<ChangePasswordResponse> {
     const token = sessionStorage.getItem('token');
@@ -219,6 +211,105 @@ export const api = {
       }
       const error = await response.json();
       throw new Error(error.detail?.message || 'Failed to change password');
+    }
+
+    return await response.json();
+  },
+
+  // 문의 생성 (모든 사용자 - 토큰 선택사항)
+  async createInquiry(request: InquiryRequest): Promise<InquiryResponse> {
+    const token = sessionStorage.getItem('token');
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // 토큰이 있으면 헤더에 추가 (없어도 괜찮음)
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/inquiries`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to create inquiry');
+    }
+
+    return await response.json();
+  },
+
+  // 관리자용 문의 목록 조회
+  async getInquiries(
+    page: number = 1,
+    pageSize: number = 20,
+    inquiryType?: string,
+    status?: string
+  ): Promise<InquiriesListResponse> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
+    if (inquiryType) params.append('inquiry_type', inquiryType);
+    if (status) params.append('status_filter', status);
+
+    const response = await fetch(`${API_BASE_URL}/api/inquiries/admin/list?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to fetch inquiries');
+    }
+
+    return await response.json();
+  },
+
+  // 문의 상태 변경 (관리자)
+  async updateInquiryStatus(inquiryId: string, status: string): Promise<InquiryDetail> {
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/inquiries/admin/${inquiryId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        sessionStorage.removeItem('token');
+        throw new Error('Unauthorized - please log in again');
+      }
+      const error = await response.json();
+      throw new Error(error.detail?.message || 'Failed to update inquiry status');
     }
 
     return await response.json();

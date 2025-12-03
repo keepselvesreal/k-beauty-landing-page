@@ -85,6 +85,7 @@ export interface FulfillmentPartnerOrder {
 export interface FulfillmentPartnerOrdersResponse {
   partner_id: string;
   partner_name: string;
+  partner_email: string;
   orders: FulfillmentPartnerOrder[];
 }
 

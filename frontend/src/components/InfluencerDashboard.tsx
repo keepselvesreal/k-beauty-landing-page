@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api, InfluencerDashboard as InfluencerDashboardData } from '../utils/api';
 import Toast from './Toast';
+import InquiryModal from './InquiryModal';
 import './InfluencerDashboard.css';
 
 const InfluencerDashboard: React.FC = () => {
@@ -9,8 +10,6 @@ const InfluencerDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isInquiryModalOpen, setIsInquiryModalOpen] = useState(false);
-  const [inquiryMessage, setInquiryMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadDashboard();
@@ -44,35 +43,6 @@ const InfluencerDashboard: React.FC = () => {
       setToast({ type: 'success', message: 'URL이 복사되었습니다' });
     } catch (err) {
       setToast({ type: 'error', message: 'URL 복사에 실패했습니다' });
-    }
-  };
-
-  const handleOpenInquiryModal = () => {
-    setInquiryMessage('');
-    setIsInquiryModalOpen(true);
-  };
-
-  const handleCloseInquiryModal = () => {
-    setIsInquiryModalOpen(false);
-    setInquiryMessage('');
-  };
-
-  const handleSendInquiry = async () => {
-    if (!inquiryMessage.trim()) {
-      setToast({ type: 'error', message: '메시지를 입력해주세요' });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await api.sendInfluencerInquiry(inquiryMessage);
-      setToast({ type: 'success', message: '문의가 발송되었습니다' });
-      handleCloseInquiryModal();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send inquiry';
-      setToast({ type: 'error', message });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -162,49 +132,18 @@ const InfluencerDashboard: React.FC = () => {
         )}
 
         <section className="inquiry-section">
-          <button className="inquiry-btn" onClick={handleOpenInquiryModal}>
+          <button className="inquiry-btn" onClick={() => setIsInquiryModalOpen(true)}>
             문의하기
           </button>
         </section>
       </div>
 
-      {isInquiryModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseInquiryModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>관리자에게 문의</h3>
-              <button className="modal-close" onClick={handleCloseInquiryModal}>✕</button>
-            </div>
-
-            <div className="modal-body">
-              <textarea
-                value={inquiryMessage}
-                onChange={(e) => setInquiryMessage(e.target.value)}
-                placeholder="문의 내용을 입력해주세요..."
-                className="inquiry-textarea"
-                disabled={isSubmitting}
-              />
-            </div>
-
-            <div className="modal-footer">
-              <button
-                className="btn-cancel"
-                onClick={handleCloseInquiryModal}
-                disabled={isSubmitting}
-              >
-                취소
-              </button>
-              <button
-                className="btn-submit"
-                onClick={handleSendInquiry}
-                disabled={!inquiryMessage.trim() || isSubmitting}
-              >
-                {isSubmitting ? '발송 중...' : '문의'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <InquiryModal
+        isOpen={isInquiryModalOpen}
+        onClose={() => setIsInquiryModalOpen(false)}
+        inquiryType="influencer"
+        prefilledEmail={data?.affiliate_code ? `${data.affiliate_code}@affiliate` : undefined}
+      />
 
       {toast && (
         <Toast
