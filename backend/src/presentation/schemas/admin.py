@@ -145,3 +145,61 @@ class ProcessRefundResponse(BaseModel):
     order_number: str
     refund_status: str
     processed_at: datetime
+
+
+# ============================================
+# 관리자 대시보드
+# ============================================
+class DashboardSummary(BaseModel):
+    """대시보드 요약"""
+    total_orders: int
+    total_profit: float
+
+
+class InfluencerCommissionItem(BaseModel):
+    """인플루언서 커미션 항목"""
+    influencer_id: UUID
+    influencer_name: str
+    pending_amount: float
+    completed_amount: float
+
+
+class InfluencerCommissionData(BaseModel):
+    """인플루언서 커미션 데이터"""
+    pending: list[InfluencerCommissionItem]
+    pending_total: float
+    completed_total: float
+
+
+class FulfillmentCommissionItem(BaseModel):
+    """배송담당자 커미션 항목"""
+    partner_id: UUID
+    partner_name: str
+    pending_amount: float
+    completed_amount: float
+
+
+class FulfillmentCommissionData(BaseModel):
+    """배송담당자 커미션 데이터"""
+    pending: list[FulfillmentCommissionItem]
+    pending_total: float
+    completed_total: float
+
+
+class RefundRequestItem(BaseModel):
+    """환불 요청 항목 (대시보드용)"""
+    refund_id: str
+    order_id: UUID
+    order_number: str
+    customer_name: str
+    refund_amount: float
+    refund_reason: str
+    requested_at: datetime
+
+
+class AdminDashboardResponse(BaseModel):
+    """관리자 대시보드 응답"""
+    summary: DashboardSummary
+    influencer_commissions: InfluencerCommissionData
+    fulfillment_commissions: FulfillmentCommissionData
+    refund_requests: list[RefundRequestItem]

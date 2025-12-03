@@ -124,9 +124,9 @@ async def get_influencer_dashboard(
     # 2. 판매 건수 조회 (AffiliateSale의 개수)
     total_sales = len(current_affiliate.sales)
 
-    # 3. 누적 수익 조회 (모든 AffiliateSale의 commission_amount 합)
+    # 3. 누적 수익 조회 (모든 AffiliateSale의 marketing_commission 합)
     cumulative_revenue = sum(
-        sale.commission_amount for sale in current_affiliate.sales
+        sale.marketing_commission for sale in current_affiliate.sales
     ) or Decimal("0.00")
 
     # 4. 지급 예상 수수료 조회 (누적 수익 - 완료된 지급액)

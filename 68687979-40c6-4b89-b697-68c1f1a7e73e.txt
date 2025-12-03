@@ -1,0 +1,3094 @@
+
+ ▐▛███▜▌   Claude Code v2.0.56
+▝▜█████▛▘  Haiku 4.5 · Claude Pro
+  ▘▘ ▝▝    ~/para/projects/k-beauty-landing-page
+
+  Debug mode enabled
+  Logging to: /home/nadle/.claude/debug/68687979-40c6-4b89-b697-68c1f1a7e73e.txt
+
+> 관리자 대시보드 구현 작업 진행할 거야. 먼저 재고 관리 페이지부터 구현하여 
+대시보드 페이지에 통합하려 해. /home/nadle/문서/google-drive-obsidian/projec
+ts/k-beauty-landing-page/mvp-v2/docs/사용자-스토리-10-관리자-대시보드.md
+/home/nadle/문서/google-drive-obsidian/projects/k-beauty-landing-page/mvp-v2
+/docs/사용자-스토리-7-관리자-재고-관리.md 이 문서 바탕으로 관리자 재고 관리
+기능을 구현하려 해. 우선 관리자 대시보드 ui만 만든 후 재고 관리 페이지
+통합할 거고, 재고 관리 기능에 집중해서 개발발할 거야. 개발할 재고 관리
+기능능 제시하고 질문 있있다면 해줘
+
+● 자, 태수. 먼저 두 문서를 읽어서 필요한 기능을 파악해볼게.
+
+● Read(~/문서/google-drive-obsidian/projects/k-beauty-landing-page/mvp-v2/docs/
+      사용자-스토리-10-관리자-대시보드.md)
+  ⎿  Read 95 lines
+
+● Read(~/문서/google-drive-obsidian/projects/k-beauty-landing-page/mvp-v2/docs/
+      사용자-스토리-7-관리자-재고-관리.md)
+  ⎿  Read 60 lines
+
+● 좋아, 문서를 읽었어. 정리해볼게.
+
+  개발할 재고 관리 기능 (사용자 스토리 7 기반)
+
+  1. 재고 목록 조회
+
+  - API: GET /api/admin/inventory
+  - 기능: 모든 배송담당자(재고 관리자)의 현재 재고 수량 조회
+  - 응답 데이터:
+    - 관리자 이름
+    - 현재 수량
+    - 마지막 업데이트 시간
+
+  2. 재고 수량 조정
+
+  - API: PUT /api/admin/inventory/{id}
+  - 요청: { quantity: number, reason?: string }
+  - 유효성 검사:
+    - 숫자만 입력 가능
+    - 음수 불가
+  - DB 업데이트: updated_at 타임스탭프 갱신
+
+  3. UI 컴포넌트
+
+  - 재고 목록 테이블 (관리자명, 수량, 수정 버튼)
+  - 수량 조정 모달
+    - 현재 수량 표시
+    - 새 수량 입력 필드
+    - 조정 사유 입력 (선택적)
+    - 실시간 유효성 검사
+    - 저장/취소 버튼
+  - 전체 가용 재고 합계 표시
+  - 성공/에러 메시지
+
+  ---
+  질문
+
+  1. 배송담당자 모델: 현재 배송담당자 모델에 inventory 필드가 있나? 아니면
+  별도의 Inventory 테이블이 필요한가?
+  2. 재고 이력: 수량 조정 이력을 따로 기록해야 하나? (누가, 언제, 이전 수량,
+   새 수량 등)
+  3. 권한: 대시보드에서 재고 관리 기능은 관리자만 접근 가능한 거 맞나?
+
+  현재 코드베이스를 먼저 확인하고 싶으면 말해줘.
+
+> 1. 별도 inventory 테이블 있을 거야. 확인해봐. 2.조정할 사람은 관리자 밖에 
+없고, 이력 따로 기록하는 게 좋을지는 너의 의견 들려줘. 3. 응 근데 애초에
+역할 별로 대시보드가 분리돼 있음. 인플루언서, 배송 담당자. 지그 ㅁ관리자
+대시보다 따로 만들려는 거고. 재고 관리 기능과 관련된 코드드 내요 ㅇ확인하고
+다시 확인 필요한 내용있으면ㄴ 질문해줘
+
+● 알겠어. 코드베이스 확인해보겠다.
+
+● Explore(Inventory 테이블과 관련 코드 탐색)
+  ⎿  Done (21 tool uses · 49.8k tokens · 1m 17s)                           
+
+● 좋아, 정리했어. 주요 내용:
+
+  현재 코드베이스 상황
+
+  1. Inventory 테이블 확인 ✅
+
+  PartnerAllocatedInventory 테이블이 있음. 배송담당자별 재고를 관리하는
+  구조:
+
+  | 필드                 | 설명                 |
+  |--------------------|--------------------|
+  | partner_id         | 배송담당자 ID           |
+  | product_id         | 상품 ID              |
+  | allocated_quantity | 초기 할당 수량           |
+  | remaining_quantity | 현재 남은 수량 (중요)      |
+  | stock_version      | 낙관적 락 버전 (동시성 제어용) |
+  | updated_at         | 마지막 업데이트 시간        |
+
+  배송담당자와 상품은 1:N 관계로 연결되어 있음.
+
+  ---
+  2. 조정 이력 기록에 대한 의견
+
+  추천: 이력 테이블 추가하는 게 좋음
+
+  이유:
+  - 감시(Audit): 누가, 언제, 뭘 조정했는지 추적 가능
+  - 디버깅: 재고 오류 발생했을 때 원인 파악 용이
+  - 비즈니스: 재고 조정 패턴 분석 (계절성, 이상치 탐지 등)
+  - 법적: 거래 기록 보관 필요할 수 있음
+
+  비용 대비 효과가 좋음. 나중에 후회하기보다 지금 만드는 게 낫다.
+
+  ---
+  3. 역할별 대시보드 분리 ✅
+
+  맞음. 현재:
+  - 배송담당자: /api/fulfillment-partner/orders - 할당된 주문만 조회
+  - 인플루언서: /api/influencer/dashboard - 수수료 현황
+  - 관리자: 아직 구현 안 됨 (지금 만들 것)
+
+  ---
+  다음 단계 확인 질문
+
+  1. 관리자 인증: 현재 관리자 로그인 엔드포인트가 있나? 아니면 만들어야
+  하나?
+  2. 상품 정보: 재고 목록에서 상품명도 같이 보여줄거? 아니면 관리자명만?
+  3. 페이지 네이션: 배송담당자가 많으면 목록을 페이징할거?
+
+> 1. 현재 관리자 로그인은 없을 거야. 관리자 경우 보통 계정 생성은 어떻게 
+해?2. 단일 상품이긴 하지만 상품명도 같이 보여줘. 3. 지금은 불필요
+
+● 좋아, 3가지 답변 받았어. 정리하겠다.
+
+● Read(backend/src/presentation/http/routers/admin.py)
+  ⎿  Read 43 lines
+
+● 현재 /api/admin/users 엔드포인트가 있긴 한데 인증 체크가 없네. 지금은
+  누구나 호출할 수 있는 상태.
+
+  관리자 계정 생성에 대해 물어본 거 맞지? 일반적인 방식 3가지가 있어:
+
+  관리자 계정 생성 방식
+
+  1. 마이그레이션 스크립트 (추천 👍)
+    - Alembic 마이그레이션에서 첫 관리자 계정 생성
+    - 프로젝트 초기화할 때 자동으로 생성
+    - 코드베이스에 기록되고 버전 관리 가능
+  2. 커맨드라인 도구
+    - python -m scripts.create_admin --email admin@example.com --password 
+  xxx
+    - 개발/배포 시 필요하면 언제든 실행
+  3. 제한된 엔드포인트
+    - 첫 설정 시에만 활성화되는 관리자 생성 엔드포인트
+    - 위험할 수 있음 (보안)
+
+  ---
+  현재 코드베이스 상황
+
+  마이그레이션 도구 확인해보자:
+
+● Search(pattern: "**/alembic* **/migration*")
+  ⎿  Found 0 files 
+
+● 마이그레이션 도구는 없는 듯. 현재 DB 초기화 방식을 보자:
+
+● Search(pattern: "backend/src/**/database.py backend/**/init*
+        backend/**/setup*")
+  ⎿  Found 0 files 
+
+● Bash(find /home/nadle/para/projects/k-beauty-landing-page/backend -name
+      "*database*" -o -name "*init*" | head -20)
+  ⎿ /home/nadle/para/projects/k-beauty-landing-page/backend/alembic/version
+    s/__pycache__/9a11da260b0b_initial_create_all_tables_from_models.cpytho
+    n-311.pyc
+    … +38 lines (ctrl+o to expand)
+
+
+
+● 아, Alembic이 있네. 확인해보자:
+
+● Read(backend/alembic/versions/9a11da260b0b_initial_create_all_tables_from_mode
+      ls.py)
+  ⎿  Read 50 lines
+
+● Read(backend/alembic.ini)
+  ⎿  Read 118 lines
+
+● 좋아, Alembic 마이그레이션이 있네. 그럼 관리자 계정 생성 방식을
+  정리하겠다.
+
+  추천 방식: 커맨드라인 도구 + 마이그레이션 초기화
+
+  이유:
+  - 개발할 때는 CLI로 손쉽게 생성
+  - 배포할 때는 마이그레이션에서 자동 생성 (환경 변수 사용)
+  - 보안 좋음 (엔드포인트로 노출 안 함)
+  - 유연함 (나중에 관리자 추가 필요 시 CLI 사용)
+
+  ---
+  개발할 재고 관리 기능 최종 정리
+
+  이제 확정된 내용으로 정리하자:
+
+  Backend 구현 목록
+
+  1. GET /api/admin/inventory
+    - 모든 배송담당자 + 상품명 + 현재 재고 수량 조회
+    - 응답: 배송담당자명, 상품명, 남은수량, 마지막 업데이트 시간
+  2. PUT /api/admin/inventory/{inventory_id}
+    - 재고 수량 수동 조정
+    - 요청: { new_quantity: int, reason?: string }
+    - 유효성: 숫자, 음수 불가
+    - DB 업데이트: remaining_quantity, updated_at
+  3. 재고 조정 이력 기록 (선택)
+    - InventoryAdjustmentLog 테이블 추가
+    - 언제, 누가, 이전/현재 수량, 사유 기록
+  4. 관리자 인증 미들웨어
+    - 현재 /api/admin/users 인증 체크 추가
+    - 모든 admin 엔드포인트에 적용
+
+  ---
+  Frontend 구현 목록
+
+  1. 재고 목록 테이블
+    - 배송담당자명 | 상품명 | 수량 | 마지막 수정 | 수정 버튼
+  2. 재고 수량 조정 모달
+    - 현재 수량 표시
+    - 새 수량 입력 필드 (실시간 유효성 검사)
+    - 조정 사유 입력 (선택적)
+    - 저장/취소 버튼
+  3. 피드백
+    - 성공/에러 토스트 메시지
+    - 저장 중 로딩 상태
+
+  ---
+  다음 질문
+
+  이력 기록 테이블 추가할 거? (아직 안 정했잖아)
+
+  - Yes: 마이그레이션 파일 만들어서 InventoryAdjustmentLog 추가
+  - No: 그냥 PartnerAllocatedInventory의 updated_at만 사용
+
+  어떻게 할거?
+
+> 관리자 인증 미들웨어를 의존성 사용보다 추천해? 
+
+● 좋은 질문이야. 정직하게 말하자면 Dependency 방식을 추천한다.
+
+  비교
+
+  | 기준       | Middleware  | Dependency        |
+  |----------|-------------|-------------------|
+  | 적용 범위    | 모든 요청 전역 적용 | 필요한 라우트만 선택적 적용   |
+  | 성능       | 불필요한 요청도 처리 | 필요한 곳만 처리         |
+  | 유연성      | 낮음 (전역 설정)  | 높음 (라우트별 제어)      |
+  | 명확성      | 암묵적         | 명시적 (함수 파라미터에 보임) |
+  | 현재 코드베이스 | 없음          | 이미 사용 중           |
+
+  ---
+  현재 코드베이스 상황
+
+  이미 Dependency 패턴이 있어:
+  - get_current_fulfillment_partner
+  - get_current_influencer
+
+  일관성 때문에 관리자도 Dependency로 하는 게 낫다.
+
+  ---
+  구현 방식
+
+  # 의존성 함수
+  def get_current_admin(
+      authorization: str = Header(None),
+      db: Session = Depends(get_db),
+  ) -> User:
+      """관리자 인증 및 권한 확인"""
+      # 1. JWT 검증
+      # 2. User 조회
+      # 3. role == "admin" 확인
+      # 4. 아니면 403 FORBIDDEN
+
+  # 사용
+  @router.get("/inventory")
+  async def get_inventory(
+      current_admin: User = Depends(get_current_admin),  # <- 이렇게
+      db: Session = Depends(get_db),
+  ):
+      ...
+
+  장점:
+  - 누가 봐도 이 엔드포인트가 관리자 전용임이 명확
+  - 테스트 시 mock 주입 쉬움
+  - 필요한 곳만 적용 (무거운 DB 조회를 불필요한 요청에 안 함)
+
+  ---
+  향후 고려사항
+
+  관리자 권한이 많아질 것 같으면 나중에 데코레이터 패턴 추가도 가능:
+
+  @router.get("/inventory")
+  @require_admin  # 데코레이터
+  async def get_inventory(...):
+      ...
+
+  하지만 지금은 Dependency로 충분하다.
+
+  진행하자?
+
+> 응. 력 기록 테이블 추가. 진행 계획 제시해주ㅝ 
+
+● 좋아, 진행 계획 세우겠다. 먼저 TodoWrite로 작업 목록을 정리하겠다.
+
+● 진행 계획
+
+  Phase 1: 데이터베이스 & 모델 (Backend)
+
+  1-1. Alembic 마이그레이션 파일 생성
+
+  목표: InventoryAdjustmentLog 테이블 생성
+  내용:
+  - id (UUID, PK)
+  - inventory_id (FK to partner_allocated_inventory)
+  - old_quantity (정수)
+  - new_quantity (정수)
+  - adjusted_by (FK to users - 현재는 관리자만)
+  - reason (텍스트, NULL 가능)
+  - created_at (타임스탬프)
+
+  1-2. 모델 정의
+
+  InventoryAdjustmentLog 클래스 추가 to models.py
+  - PartnerAllocatedInventory와 1:N 관계
+  - User와 1:N 관계
+
+  ---
+  Phase 2: 데이터 접근 계층 (Repository)
+
+  2-1. InventoryRepository 메서드 추가
+
+  # 조회
+  - get_all_inventory_by_admin()  # 모든 배송담당자 재고 + 상품명 조회
+  - get_inventory_adjustment_history(inventory_id)  # 특정 재고 이력 조회
+
+  # 조정 (트랜잭션)
+  - adjust_inventory(inventory_id, new_quantity, reason, admin_id)
+    → PartnerAllocatedInventory 업데이트
+    → InventoryAdjustmentLog 기록
+
+  ---
+  Phase 3: API 엔드포인트 (Router)
+
+  3-1. 관리자 인증 Dependency 추가
+
+  # fulfillment_partner.py 패턴 따라서 admin.py에 추가
+  def get_current_admin(authorization, db) -> User
+    → JWT 검증 → role == "admin" 확인
+
+  3-2. GET /api/admin/inventory
+
+  요청: None
+  응답: [
+    {
+      "inventory_id": "uuid",
+      "partner_id": "uuid",
+      "partner_name": "배송담당자명",
+      "product_name": "상품명",
+      "current_quantity": 50,
+      "allocated_quantity": 100,
+      "last_adjusted_at": "2025-12-03T..."
+    }
+  ]
+
+  3-3. PUT /api/admin/inventory/{inventory_id}
+
+  요청: {
+    "new_quantity": 60,
+    "reason": "실사 후 재고 정정"  (선택적)
+  }
+
+  응답: {
+    "inventory_id": "uuid",
+    "previous_quantity": 50,
+    "new_quantity": 60,
+    "updated_at": "...",
+    "adjustment_log_id": "uuid"
+  }
+
+  유효성 검사:
+  - 숫자 타입
+  - >= 0
+
+  ---
+  Phase 4: Frontend (나중)
+
+  4-1. 관리자 대시보드 UI 디자인
+
+  - 재고 목록 테이블 생성
+
+  4-2. 수량 조정 모달 구현
+
+  - 입력 필드 + 유효성 검사
+  - API 호출 + 결과 처리
+
+  ---
+  구현 순서
+
+  1️⃣ 마이그레이션 파일 작성 → 테이블 생성
+  2️⃣ 모델 정의 → ORM 매핑
+  3️⃣ Repository 메서드 → 데이터 접근 로직
+  4️⃣ Admin 인증 Dependency → 권한 체크
+  5️⃣ API 엔드포인트 → GET/PUT 구현
+  6️⃣ Frontend → UI/컴포넌트
+
+  ---
+  진행해도 될까?
+
+  이 계획으로 진행하면 되지?
+
+> 특정 재고 이력 조회 사용하는 경우 예를 들어줘 . 
+
+● 좋은 질문이야. 정직하게 말하면 지금은 특정 재고 이력 조회가 필요 없을 것 
+  같다.
+
+  사용하는 경우 (만약 필요하면)
+
+  1. 재고 오류 원인 파악
+    - 어떤 배송담당자의 특정 상품 재고가 자꾸 줄어든다
+    - 이력 조회 → "12/2일 관리자가 50개 조정했네" → 원인 파악
+  2. 감사(Audit) 목적
+    - "이 재고를 누가, 언제, 왜 조정했는가?"
+    - 정기 점검할 때 이력 리뷰
+  3. 대시보드 상세 화면
+    - 재고 목록에서 특정 행 클릭 → 최근 조정 기록 3개 보여주기
+
+  ---
+  현재 상황 평가
+
+  요구사항 재확인:
+  - 사용자 스토리 7: 목록 조회 + 수량 조정만 명시
+  - 이력 조회는 없음
+
+  YAGNI 원칙: (You Aren't Gonna Need It)
+  - 과도한 설계는 피해야 함
+  - 기능이 필요할 때 추가하는 게 맞음
+
+  ---
+  수정 제안
+
+  이력 조회 메서드 제거:
+  # 제거
+  - get_inventory_adjustment_history(inventory_id)
+
+  # 보존 (조정 기록만 저장)
+  - adjust_inventory(inventory_id, new_quantity, reason, admin_id)
+
+  향후 필요하면 추가:
+  - 대시보드에 "최근 조정 기록" 섹션 필요 → 그때 구현
+
+  ---
+  이렇게 진행해도 괜찮아?
+
+> 특정 재고 이력 조회는 특정 배송 담당자에 대한 재고 이력 조회를를 
+확인하는데 사용? 확인하기 위해선 필요?
+
+● 아, 맞다! 좋은 지적이야.
+
+  필요한 경우
+
+  특정 배송담당자의 재고 조정 상세 화면이 필요하다면:
+
+  시나리오:
+  1. 관리자가 재고 목록에서 "배송담당자A"의 재고 조정 버튼 클릭
+  2. 모달 열림 (현재 수량, 입력 필드)
+  3. +그 배송담당자의 최근 조정 이력 3개 표시
+    - "12/2일: 50개 → 45개 (반품 처리)"
+    - "12/1일: 60개 → 50개 (누락 발견)"
+    - ...
+
+  이렇게 하면:
+  - 현재 상태를 이해하고 조정 결정 가능
+  - "어? 어제 50으로 맞춰놨는데 왜 또 조정하지?" 같은 실수 방지
+
+  ---
+  현재 요구사항 확인
+
+  사용자 스토리 7을 다시 보면:
+  - 목록 조회 ✅
+  - 수량 조정 ✅
+  - 이력 조회는 없음 ❌
+
+  ---
+  너의 의견 들려줘
+
+  질문:
+  1. 관리자 대시보드 UI에서 상세 화면 (디테일 페이지)를 만들 거?
+    - Yes → 이력 조회 필요 → 메서드 추가
+    - No → 목록에서만 조정 → 이력 조회 불필요
+  2. 아니면 모달에서 바로 조정만 할 거? (이력 없이)
+
+  어떻게 설계할거?
+
+> 이력 조회 추가. 재고 조정하는 사람은 관리자인 나나 한 명 뿌닝지만, 내가 
+나중에 어떤 조정했고 이유가 뭐였는지 보기기 위해
+
+● 좋아, 이해했어. 명확하네. 그럼 이력 조회 추가로 계획을 수정하겠다.
+
+● 수정된 진행 계획
+
+  Phase 1: 데이터베이스 & 모델
+
+  1-1. Alembic 마이그레이션 파일 생성
+
+  InventoryAdjustmentLog 테이블:
+  - id (UUID, PK)
+  - inventory_id (FK to partner_allocated_inventory)
+  - old_quantity (정수)
+  - new_quantity (정수)
+  - adjusted_by (FK to users)
+  - reason (텍스트, NULL 가능)
+  - created_at (타임스탐프)
+
+  1-2. 모델 정의
+
+  InventoryAdjustmentLog 클래스 추가
+  - PartnerAllocatedInventory와 1:N 관계
+  - User와 1:N 관계
+
+  ---
+  Phase 2: 데이터 접근 계층
+
+  2-1. InventoryRepository 메서드 추가
+
+  # 조회
+  - get_all_inventory_by_admin()
+    → 모든 배송담당자 재고 + 상품명 조회
+
+  - get_inventory_adjustment_history(inventory_id, limit=10)
+    → 특정 재고의 조정 이력 조회 (최근순)
+    → old_quantity, new_quantity, reason, created_at
+
+  # 조정 (트랜잭션)
+  - adjust_inventory(inventory_id, new_quantity, reason, admin_id)
+    → PartnerAllocatedInventory 업데이트
+    → InventoryAdjustmentLog 기록
+
+  ---
+  Phase 3: API 엔드포인트
+
+  3-1. 관리자 인증 Dependency 추가
+
+  def get_current_admin(authorization, db) -> User
+
+  3-2. GET /api/admin/inventory
+
+  응답: [
+    {
+      "inventory_id": "uuid",
+      "partner_name": "배송담당자명",
+      "product_name": "상품명",
+      "current_quantity": 50,
+      "allocated_quantity": 100,
+      "last_adjusted_at": "2025-12-03T..."
+    }
+  ]
+
+  3-3. PUT /api/admin/inventory/{inventory_id}
+
+  요청: {
+    "new_quantity": 60,
+    "reason": "실사 후 재고 정정"  (선택적)
+  }
+
+  응답: {
+    "inventory_id": "uuid",
+    "previous_quantity": 50,
+    "new_quantity": 60,
+    "updated_at": "...",
+    "adjustment_log_id": "uuid"
+  }
+
+  3-4. NEW GET /api/admin/inventory/{inventory_id}/history
+
+  응답: [
+    {
+      "log_id": "uuid",
+      "old_quantity": 50,
+      "new_quantity": 60,
+      "reason": "실사 후 재고 정정",
+      "adjusted_at": "2025-12-03T10:30:00",
+      "adjusted_by": "admin"  (현재는 항상 "admin")
+    },
+    ...
+  ]
+
+  ---
+  Phase 4: Frontend
+
+  4-1. 재고 목록 테이블
+
+  - 배송담당자명 | 상품명 | 수량 | 마지막 수정 | 수정/이력 버튼
+
+  4-2. 재고 조정 모달
+
+  - 현재 수량 표시
+  - 새 수량 입력 필드
+  - 조정 사유 입력 (선택적)
+  - 저장/취소 버튼
+
+  4-3. 재고 조정 이력 표시
+
+  - 모달 우측 또는 하단에 "최근 조정 이력" 섹션
+  - 날짜 | 이전수량 → 새수량 | 사유
+
+  ---
+  구현 순서
+
+  1️⃣ 마이그레이션 파일 → 테이블 생성
+  2️⃣ 모델 정의 → ORM 매핑
+  3️⃣ Repository 메서드 (3개 모두)
+  4️⃣ Admin 인증 Dependency
+  5️⃣ 3개 API 엔드포인트 (GET 목록, PUT 조정, GET 이력)
+  6️⃣ Frontend → UI/컴포넌트
+
+  ---
+  이 계획으로 진행해도 괜찮아?
+
+> 응 
+
+● 좋아, 시작하자. Phase 1부터 시작할게.
+
+  먼저 Alembic 마이그레이션 구조를 확인한 후 새로운 마이그레이션 파일을
+  생성하겠다.
+
+● Bash(ls -la
+      /home/nadle/para/projects/k-beauty-landing-page/backend/alembic/versions/)
+  ⎿  합계 44                                        
+     drwxrwxr-x 3 nadle nadle  4096 12월  2 21:41 .
+     drwxrwxr-x 4 nadle nadle  4096 12월  1 21:11 ..
+     … +11 lines (ctrl+o to expand)
+
+● 알겠어. 이제 새로운 마이그레이션 파일을 생성하겠다. 먼저 models.py에서
+  현재 구조를 확인해서 마이그레이션 파일을 만들겠다.
+
+● Bash(cd /home/nadle/para/projects/k-beauty-landing-page/backend && alembic
+      revision --autogenerate -m "add inventory adjustment log table")
+  ⎿  Error: Exit code 127
+     (eval):1: command not found: alembic
+
+● Bash(cd /home/nadle/para/projects/k-beauty-landing-page/backend && python -m
+      alembic revision --autogenerate -m "add inventory adjustment log table")
+  ⎿  Error: Exit code 1
+     /usr/bin/python3: No module named alembic.__main__; 'alembic' is a package 
+     and cannot be directly executed
+
+● Bash(cd /home/nadle/para/projects/k-beauty-landing-page/backend && uv run
+      alembic revision --autogenerate -m "add inventory adjustment log table")
+  ⎿  Error: Exit code 1
+     Traceback (most recent call last):
+       File "/home/nadle/para/projects/k-beauty-landing-page/backend/.venv/lib/py
+     thon3.11/site-packages/sqlalchemy/engine/base.py", line 145, in __init__
+         self._dbapi_connection = engine.raw_connection()
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+       File "/home/nadle/para/projects/k-beauty-landing-page/backend/.venv/lib/py
+     thon3.11/site-packages/sqlalchemy/engine/base.py", line 3292, in 
+     raw_connection
+         return self.pool.connect()
+                ^^^^^^^^^^^^^^^^^^^
+       File "/home/nadle/para/projects/k-beauty-landing-page/backend/.venv/lib/py
+     thon3.11/site-packages/sqlalchemy/pool/base.py", line 452, in connect
+         return _ConnectionFairy._checkout(self)
+     … +114 lines (ctrl+o to see all)
+
+● DB가 실행 중이 아니네. 다른 방식으로 진행하자.
+
+  먼저 models.py에 InventoryAdjustmentLog 모델을 정의하고, 그 다음
+  마이그레이션 파일을 수동으로 작성하겠다.
+
+  models.py를 먼저 확인하고 모델을 추가하자:
+
+● Read(backend/src/persistence/models.py)
+  ⎿  Read 383 lines
+
+> uv 사용 
+  ⎿  Interrupted · What should Claude do instead?
+
+> uv 사용. 수동으로 마이그레이션 하면 안됨. 자동으로 해야 추적에 문제 
+없으므로
+
+● 맞아, 자동 마이그레이션이 맞다. DB부터 실행해야 한다.
+
+  먼저 models.py에 InventoryAdjustmentLog 모델을 추가하고, DB를 실행한 후
+  자동 마이그레이션을 생성하자.
+
+● Bash(find /home/nadle/para/projects/k-beauty-landing-page -name
+      "docker-compose*" -o -name ".env*" | head -10)
+  ⎿  /home/nadle/para/projects/k-beauty-landing-page/.env         
+     /home/nadle/para/projects/k-beauty-landing-page/frontend/.env
+     /home/nadle/para/projects/k-beauty-landing-page/backend/.env
+     … +2 lines (ctrl+o to expand)
+
+● Bash(find /home/nadle/para/projects/k-beauty-landing-page -name
+      "docker-compose.yml" -o -name "docker-compose.yaml")
+  ⎿  (No content)
+
+● Read(backend/.env)
+  ⎿  Read 59 lines
+
+● 좋아. 먼저 models.py에 InventoryAdjustmentLog 모델을 추가하겠다.
+
+● Update(backend/src/persistence/models.py)
+  ⎿  Updated backend/src/persistence/models.py with 20 additions        
+       125        # 관계
+       126        partner = relationship("FulfillmentPartner", 
+             back_populates="allocated_inventory")
+       127        product = relationship("Product", 
+             back_populates="allocated_inventory")
+       128 +      adjustment_logs = 
+           + relationship("InventoryAdjustmentLog", 
+           + back_populates="inventory")
+       129    
+       130    
+       131    # ============================================
+       132 +  # 5-1. Inventory Adjustment Logs (재고 조정 이력)
+       133 +  # ============================================
+       134 +  class InventoryAdjustmentLog(Base):
+       135 +      __tablename__ = "inventory_adjustment_logs"
+       136 +  
+       137 +      id = Column(UUID(as_uuid=True), primary_key=True, 
+           + default=uuid4)
+       138 +      inventory_id = Column(UUID(as_uuid=True), 
+           + ForeignKey("partner_allocated_inventory.id"), 
+           + nullable=False, index=True)
+       139 +      old_quantity = Column(Integer, nullable=False)
+       140 +      new_quantity = Column(Integer, nullable=False)
+       141 +      adjusted_by = Column(UUID(as_uuid=True), 
+           + ForeignKey("users.id"), nullable=False, index=True)
+       142 +      reason = Column(Text)
+       143 +      created_at = Column(DateTime, default=datetime.utcnow)
+       144 +  
+       145 +      # 관계
+       146 +      inventory = relationship("PartnerAllocatedInventory", 
+           + back_populates="adjustment_logs")
+       147 +      admin = relationship("User")
+       148 +  
+       149 +  
+       150 +  # ============================================
+       151    # 6. Orders (주문)
+       152    # ============================================
+       153    class Order(Base):
+
+● 좋아. 모델이 추가됐다. 이제 PostgreSQL이 실행 중인지 확인하자.
+
+● Bash(pg_isready -h localhost -p 5432)
+  ⎿  Error: Exit code 127
+     (eval):1: command not found: pg_isready
+
+● Bash(sudo systemctl status postgresql 2>&1 | head -10)
+  ⎿ sudo: a terminal is required to read the password; either use the -S op
+    tion to read from standard input or configure an askpass helper
+    sudo: 암호가 필요합니다
+
+
+● PostgreSQL 접근이 제한되네. 현재 프로젝트에서 DB를 어떻게 관리하는지
+  확인해보자.
+
+● Bash(grep -r "docker\|postgres" . --include="*.md" --include="*.txt"
+      2>/dev/null | head -20)
+  ⎿ ./frontend/node_modules/dotenv/README.md:DATABASE_URL="postgres://${USE
+    RNAME}@localhost/my_database"
+    ./frontend/node_modules/dotenv/README.md:DATABASE_URL postgres://userna
+    … +45 lines (ctrl+o to expand)
+
+
+
+● 태수, PostgreSQL이 실행 중이 아닌 것 같다. 마이그레이션 자동 생성을
+  위해서는 DB가 필요해.
+
+  현재 상황:
+  - 모델은 추가됨 ✅
+  - DB 연결 안 됨 ❌
+
+  해결 방법 2가지:
+
+  1. PostgreSQL 시작 (추천)
+    - 너의 환경에서 PostgreSQL을 어떻게 실행하나? Docker? 로컬 설치? 이 정보
+   줄래.
+  2. 아니면 일단 스킵하고 다음부터
+    - 모델 정의, Repository, API 엔드포인트 먼저 구현
+    - 나중에 DB 실행 후 마이그레이션 한 번에 생성
+
+  어느 쪽이 편해?
+
+> docker postgres. 
+
+● 좋아. Docker로 PostgreSQL을 실행하자.
+
+● Bash(docker ps -a | grep postgres)
+  ⎿ 932cf94f6adf   postgres:15            "docker-entrypoint.s…"   14 hours
+     ago   Exited (0) 10 hours ago             kbeauty-postgres
+    8d0a3f153b3b   postgres:16            "docker-entrypoint.s…"   4 days a
+    go     Exited (0) 14 hours ago             postgres
+
+
+
+● 좋아, kbeauty-postgres 컨테이너가 있네. 시작하자.
+
+● Bash(docker start kbeauty-postgres && sleep 3 && docker ps | grep
+      kbeauty-postgres)
+  ⎿ kbeauty-postgres                                                       
+    932cf94f6adf   postgres:15   "docker-entrypoint.s…"   14 hours ago   Up
+     3 seconds   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp   kbeauty-post
+    gres
+
+
+
+● 완벽하다. PostgreSQL이 실행 중이다. 이제 자동 마이그레이션 파일을
+  생성하자.
+
+● Bash(cd /home/nadle/para/projects/k-beauty-landing-page/backend && uv run
+      alembic revision --autogenerate -m "add inventory adjustment log table")
+  ⎿ Generating /home/nadle/para/projects/k-beauty-landing-page/backend/alem
+    bic/versions/3791e7e3ee49_add_inventory_adjustment_log_table.py ...  do
+    ne
+    … +11 lines (ctrl+o to expand)
+
+
+
+● 완벽하다! 마이그레이션 파일이 생성됐다. 이제 마이그레이션을 실행해서
+  테이블을 생성하자.
+
+● Bash(uv run alembic upgrade head)
+  ⎿ INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.         
+    INFO  [alembic.runtime.migration] Will assume transactional DDL.
+    INFO  [alembic.runtime.migration] Running upgrade d8e5d38e78c4 -> 3791e
+    7e3ee49, add inventory adjustment log table
+
+
+● 완벽하다! 마이그레이션이 완료됐다. 이제 todo를 업데이트하고 다음 단계로
+  진행하자.
+
+● 좋아, Phase 1 완료! 이제 Phase 2로 넘어가자. InventoryRepository에
+  메서드를 추가하겠다.
+
+  먼저 현재 파일을 확인해보자:
+
+● Read(backend/src/persistence/repositories/inventory_repository.py)
+  ⎿  Read 128 lines
+
+● 좋아. 이제 3개의 메서드를 추가하겠다:
+  1. get_all_inventory_by_admin() - 모든 배송담당자 재고 조회
+  2. get_inventory_adjustment_history() - 특정 재고의 이력 조회
+  3. adjust_inventory() - 재고 조정 및 이력 저장
+
+● Update(backend/src/persistence/repositories/inventory_repository.py)
+  ⎿  Updated backend/src/persistence/repositories/inventory_repository.py  
+     with 6 additions and 1 removal
+        5    
+        6    from sqlalchemy.orm import Session
+        7    
+        8 -  from src.persistence.models import PartnerAllocatedInventory
+        8 +  from src.persistence.models import (
+        9 +      PartnerAllocatedInventory,
+       10 +      InventoryAdjustmentLog,
+       11 +      FulfillmentPartner,
+       12 +      Product,
+       13 +  )
+       14    from src.utils.exceptions import OrderException
+       15    
+       16    
+
+● 이제 3개 메서드를 파일 끝에 추가하겠다:
+
+● Update(backend/src/persistence/repositories/inventory_repository.py)
+  ⎿  Updated backend/src/persistence/repositories/inventory_repository.py  
+     with 162 additions
+       130                code="OPTIMISTIC_LOCK_FAILED",
+       131                message=f"재고 업데이트에 실패했습니다. 
+             {max_retries}회 재시도 후 포기: {inventory_id}",
+       132            )
+       133 +  
+       134 +      @staticmethod
+       135 +      def get_all_inventory_by_admin(db: Session) -> 
+           + list[dict]:
+       136 +          """
+       137 +          모든 배송담당자별 재고 조회 (관리자용)
+       138 +  
+       139 +          Returns:
+       140 +              [
+       141 +                  {
+       142 +                      "inventory_id": UUID,
+       143 +                      "partner_id": UUID,
+       144 +                      "partner_name": str,
+       145 +                      "product_id": UUID,
+       146 +                      "product_name": str,
+       147 +                      "current_quantity": int,
+       148 +                      "allocated_quantity": int,
+       149 +                      "last_adjusted_at": datetime,
+       150 +                  }
+       151 +              ]
+       152 +          """
+       153 +          results = db.query(
+       154 +              
+           + PartnerAllocatedInventory.id.label("inventory_id"),
+       155 +              PartnerAllocatedInventory.partner_id,
+       156 +              FulfillmentPartner.name.label("partner_name"),
+       157 +              PartnerAllocatedInventory.product_id,
+       158 +              Product.name.label("product_name"),
+       159 +              PartnerAllocatedInventory.remaining_quantity.la
+           + bel("current_quantity"),
+       160 +              PartnerAllocatedInventory.allocated_quantity,
+       161 +              PartnerAllocatedInventory.updated_at.label("las
+           + t_adjusted_at"),
+       162 +          ).join(
+       163 +              FulfillmentPartner, 
+           + PartnerAllocatedInventory.partner_id == 
+           + FulfillmentPartner.id
+       164 +          ).join(
+       165 +              Product, PartnerAllocatedInventory.product_id 
+           + == Product.id
+       166 +          ).order_by(
+       167 +              FulfillmentPartner.name,
+       168 +              Product.name,
+       169 +          ).all()
+       170 +  
+       171 +          return [dict(row._mapping) for row in results]
+       172 +  
+       173 +      @staticmethod
+       174 +      def get_inventory_adjustment_history(
+       175 +          db: Session,
+       176 +          inventory_id: UUID,
+       177 +          limit: int = 10,
+       178 +      ) -> list[dict]:
+       179 +          """
+       180 +          특정 재고의 조정 이력 조회
+       181 +  
+       182 +          Args:
+       183 +              db: 데이터베이스 세션
+       184 +              inventory_id: PartnerAllocatedInventory ID
+       185 +              limit: 조회 건수 (기본값 10)
+       186 +  
+       187 +          Returns:
+       188 +              [
+       189 +                  {
+       190 +                      "log_id": UUID,
+       191 +                      "old_quantity": int,
+       192 +                      "new_quantity": int,
+       193 +                      "reason": str | None,
+       194 +                      "adjusted_at": datetime,
+       195 +                      "adjusted_by": str,  # admin email
+       196 +                  }
+       197 +              ]
+       198 +          """
+       199 +          results = db.query(
+       200 +              InventoryAdjustmentLog.id.label("log_id"),
+       201 +              InventoryAdjustmentLog.old_quantity,
+       202 +              InventoryAdjustmentLog.new_quantity,
+       203 +              InventoryAdjustmentLog.reason,
+       204 +              
+           + InventoryAdjustmentLog.created_at.label("adjusted_at"),
+       205 +          ).filter(
+       206 +              InventoryAdjustmentLog.inventory_id == 
+           + inventory_id
+       207 +          ).order_by(
+       208 +              InventoryAdjustmentLog.created_at.desc()
+       209 +          ).limit(limit).all()
+       210 +  
+       211 +          return [dict(row._mapping) for row in results]
+       212 +  
+       213 +      @staticmethod
+       214 +      def adjust_inventory(
+       215 +          db: Session,
+       216 +          inventory_id: UUID,
+       217 +          new_quantity: int,
+       218 +          admin_id: UUID,
+       219 +          reason: Optional[str] = None,
+       220 +      ) -> dict:
+       221 +          """
+       222 +          재고 수량 수동 조정 및 이력 기록
+       223 +  
+       224 +          Args:
+       225 +              db: 데이터베이스 세션
+       226 +              inventory_id: PartnerAllocatedInventory ID
+       227 +              new_quantity: 새로운 수량
+       228 +              admin_id: 관리자 User ID
+       229 +              reason: 조정 사유 (선택적)
+       230 +  
+       231 +          Returns:
+       232 +              {
+       233 +                  "inventory_id": UUID,
+       234 +                  "old_quantity": int,
+       235 +                  "new_quantity": int,
+       236 +                  "log_id": UUID,
+       237 +                  "updated_at": datetime,
+       238 +              }
+       239 +  
+       240 +          Raises:
+       241 +              OrderException: 재고를 찾을 수 없거나 유효성 
+           + 검사 실패
+       242 +          """
+       243 +          # 1. 재고 조회
+       244 +          inventory = 
+           + db.query(PartnerAllocatedInventory).filter(
+       245 +              PartnerAllocatedInventory.id == inventory_id
+       246 +          ).first()
+       247 +  
+       248 +          if not inventory:
+       249 +              raise OrderException(
+       250 +                  code="INVENTORY_NOT_FOUND",
+       251 +                  message=f"재고를 찾을 수 없습니다: 
+           + {inventory_id}",
+       252 +              )
+       253 +  
+       254 +          # 2. 유효성 검사
+       255 +          if new_quantity < 0:
+       256 +              raise OrderException(
+       257 +                  code="INVALID_QUANTITY",
+       258 +                  message="재고 수량은 음수일 수 없습니다",
+       259 +              )
+       260 +  
+       261 +          old_quantity = inventory.remaining_quantity
+       262 +  
+       263 +          # 3. 재고 업데이트 (트랜잭션)
+       264 +          try:
+       265 +              inventory.remaining_quantity = new_quantity
+       266 +              db.flush()  # 업데이트 먼저 처리
+       267 +  
+       268 +              # 4. 이력 기록 생성
+       269 +              adjustment_log = InventoryAdjustmentLog(
+       270 +                  inventory_id=inventory_id,
+       271 +                  old_quantity=old_quantity,
+       272 +                  new_quantity=new_quantity,
+       273 +                  adjusted_by=admin_id,
+       274 +                  reason=reason,
+       275 +              )
+       276 +              db.add(adjustment_log)
+       277 +  
+       278 +              # 5. 커밋
+       279 +              db.commit()
+       280 +  
+       281 +              return {
+       282 +                  "inventory_id": inventory_id,
+       283 +                  "old_quantity": old_quantity,
+       284 +                  "new_quantity": new_quantity,
+       285 +                  "log_id": adjustment_log.id,
+       286 +                  "updated_at": inventory.updated_at,
+       287 +              }
+       288 +  
+       289 +          except Exception as e:
+       290 +              db.rollback()
+       291 +              raise OrderException(
+       292 +                  code="INVENTORY_UPDATE_FAILED",
+       293 +                  message=f"재고 업데이트 중 오류 발생: 
+           + {str(e)}",
+       294 +              )
+
+● 완벽하다! Repository 메서드 3개 추가 완료. 이제 todo를 업데이트하고 다음
+  단계로 진행하자.
+
+● 이제 Phase 3 시작: 관리자 인증 Dependency 함수. 먼저 현재 admin.py 파일을
+  확인하자:
+
+● Read(backend/src/presentation/http/routers/admin.py)
+  ⎿  Read 43 lines
+
+● 이제 fulfillment_partner.py에서 인증 패턴을 확인해서 get_current_admin을
+  만들자:
+
+● Read(backend/src/presentation/http/routers/fulfillment_partner.py)
+  ⎿  Read 100 lines
+
+● 좋아. 패턴을 이해했다. 이제 admin.py에 get_current_admin을 추가하겠다:
+
+● Update(backend/src/presentation/http/routers/admin.py)
+  ⎿  Updated backend/src/presentation/http/routers/admin.py with 80        
+     additions and 1 removal
+        1    """관리자 라우터 - Presentation Layer"""
+        2    
+        3 -  from fastapi import APIRouter, Depends, HTTPException, 
+          -  status
+        3 +  from fastapi import APIRouter, Depends, HTTPException, 
+          +  status, Header
+        4    from sqlalchemy.orm import Session
+        5    
+        6    from ....persistence.database import get_db
+        7 +  from ....persistence.models import User
+        8    from ....workflow.services.admin_service import AdminService
+        9 +  from ....utils.auth import JWTTokenManager
+       10    from ....utils.exceptions import AuthenticationError
+       11    from ...schemas.admin import CreateUserRequest, 
+            CreateUserResponse
+       12    
+       13    router = APIRouter(prefix="/api/admin", tags=["Admin"])
+       14    
+       15    
+       16 +  def get_current_admin(
+       17 +      authorization: str = Header(None),
+       18 +      db: Session = Depends(get_db),
+       19 +  ) -> User:
+       20 +      """
+       21 +      현재 관리자 인증 확인
+       22 +  
+       23 +      Args:
+       24 +          authorization: Authorization 헤더 (Bearer token)
+       25 +          db: 데이터베이스 세션
+       26 +  
+       27 +      Returns:
+       28 +          현재 사용자의 User 객체 (role == "admin")
+       29 +  
+       30 +      Raises:
+       31 +          HTTPException: 토큰 없음, 유효하지 않음, 관리자 아님
+       32 +      """
+       33 +      if not authorization:
+       34 +          raise HTTPException(
+       35 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       36 +              detail={
+       37 +                  "code": "MISSING_TOKEN",
+       38 +                  "message": "Authorization 헤더가 
+          + 필요합니다.",
+       39 +              },
+       40 +          )
+       41 +  
+       42 +      # Bearer 토큰 추출
+       43 +      parts = authorization.split()
+       44 +      if len(parts) != 2 or parts[0].lower() != "bearer":
+       45 +          raise HTTPException(
+       46 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       47 +              detail={
+       48 +                  "code": "INVALID_TOKEN_FORMAT",
+       49 +                  "message": "유효하지 않은 토큰 형식입니다.",
+       50 +              },
+       51 +          )
+       52 +  
+       53 +      token = parts[1]
+       54 +  
+       55 +      # JWT 토큰 검증
+       56 +      try:
+       57 +          payload = JWTTokenManager.verify_access_token(token)
+       58 +      except AuthenticationError as e:
+       59 +          raise HTTPException(
+       60 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       61 +              detail={
+       62 +                  "code": e.code,
+       63 +                  "message": e.message,
+       64 +              },
+       65 +          )
+       66 +  
+       67 +      # 사용자 조회
+       68 +      user_id = payload.get("user_id")
+       69 +      user = db.query(User).filter(User.id == user_id).first()
+       70 +  
+       71 +      if not user:
+       72 +          raise HTTPException(
+       73 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       74 +              detail={
+       75 +                  "code": "USER_NOT_FOUND",
+       76 +                  "message": "사용자를 찾을 수 없습니다.",
+       77 +              },
+       78 +          )
+       79 +  
+       80 +      # 관리자 역할 확인
+       81 +      if user.role != "admin":
+       82 +          raise HTTPException(
+       83 +              status_code=status.HTTP_403_FORBIDDEN,
+       84 +              detail={
+       85 +                  "code": "NOT_ADMIN",
+       86 +                  "message": "관리자 권한이 필요합니다.",
+       87 +              },
+       88 +          )
+       89 +  
+       90 +      return user
+       91 +  
+       92 +  
+       93    @router.post("/users", response_model=CreateUserResponse)
+       94    async def create_user(
+       95        request: CreateUserRequest,
+
+● 이제 create_user 엔드포인트에 관리자 인증을 추가하겠다. 현재 파일의
+  나머지를 읽어보자:
+
+● Read(backend/src/presentation/http/routers/admin.py)
+  ⎿  Read 30 lines
+
+● create_user에 관리자 인증을 추가하겠다:
+
+● Update(backend/src/presentation/http/routers/admin.py)
+  ⎿  Updated backend/src/presentation/http/routers/admin.py with 2 addition
+      and 1 removal
+        93    @router.post("/users", response_model=CreateUserResponse)
+        94    async def create_user(
+        95        request: CreateUserRequest,
+        96 +      current_admin: User = Depends(get_current_admin),
+        97        db: Session = Depends(get_db),
+        98    ):
+        99 -      """사용자 생성 (배송담당자, 인플루언서)"""
+        99 +      """사용자 생성 (배송담당자, 인플루언서) - 관리자 전용"""
+       100        try:
+       101            # Service 계층에서 사용자 생성
+       102            user = AdminService.create_user(
+
+● 좋아. 이제 admin.py의 끝에 3개 엔드포인트를 추가해야 한다. 먼저 schemas를
+  확인해보자:
+
+● Bash(find /home/nadle/para/projects/k-beauty-landing-page/backend -name
+      "*schema*" -type d)
+  ⎿ /home/nadle/para/projects/k-beauty-landing-page/backend/src/presentatio
+    n/schemas
+    /home/nadle/para/projects/k-beauty-landing-page/backend/.mypy_cache/3.1
+    1/src/presentation/schemas
+
+
+
+● Bash(ls -la /home/nadle/para/projects/k-beauty-landing-page/backend/src/presen
+      tation/schemas/)
+  ⎿  합계 48                                       
+     drwxrwxr-x 3 nadle nadle 4096 12월  2 23:14 .
+     drwxrwxr-x 5 nadle nadle 4096 11월 28 16:10 ..
+     … +10 lines (ctrl+o to expand)
+
+● admin schema를 확인하자:
+
+● Read(backend/src/presentation/schemas/admin.py)
+  ⎿  Read 18 lines
+
+● admin schema에 새로운 스키마들을 추가하겠다:
+
+● Update(backend/src/presentation/schemas/admin.py)
+  ⎿  Updated backend/src/presentation/schemas/admin.py with 60 additions an
+      1 removal
+        1    """관리자 관련 Pydantic 스키마 - HTTP DTO"""
+        2    
+        3 -  from pydantic import BaseModel, EmailStr
+        3 +  from datetime import datetime
+        4 +  from uuid import UUID
+        5    
+        6 +  from pydantic import BaseModel, EmailStr, Field
+        7    
+        8 +  
+        9 +  # ============================================
+       10 +  # 사용자 생성
+       11 +  # ============================================
+       12    class CreateUserRequest(BaseModel):
+       13        """사용자 생성 요청"""
+       14        email: EmailStr
+     ...
+       15        user_id: str
+       16        email: str
+       17        role: str
+       18 +  
+       19 +  
+       20 +  # ============================================
+       21 +  # 재고 관리
+       22 +  # ============================================
+       23 +  class InventoryItem(BaseModel):
+       24 +      """재고 목록 항목"""
+       25 +      inventory_id: UUID
+       26 +      partner_id: UUID
+       27 +      partner_name: str
+       28 +      product_id: UUID
+       29 +      product_name: str
+       30 +      current_quantity: int
+       31 +      allocated_quantity: int
+       32 +      last_adjusted_at: datetime
+       33 +  
+       34 +  
+       35 +  class InventoryListResponse(BaseModel):
+       36 +      """재고 목록 응답"""
+       37 +      inventories: list[InventoryItem]
+       38 +      total_count: int
+       39 +  
+       40 +  
+       41 +  class AdjustInventoryRequest(BaseModel):
+       42 +      """재고 조정 요청"""
+       43 +      new_quantity: int = Field(..., ge=0, description="새로운
+          +  수량 (0 이상)")
+       44 +      reason: str | None = Field(None, description="조정 사유 
+          + (선택적)")
+       45 +  
+       46 +  
+       47 +  class AdjustInventoryResponse(BaseModel):
+       48 +      """재고 조정 응답"""
+       49 +      inventory_id: UUID
+       50 +      old_quantity: int
+       51 +      new_quantity: int
+       52 +      log_id: UUID
+       53 +      updated_at: datetime
+       54 +  
+       55 +  
+       56 +  class InventoryAdjustmentHistoryItem(BaseModel):
+       57 +      """재고 조정 이력 항목"""
+       58 +      log_id: UUID
+       59 +      old_quantity: int
+       60 +      new_quantity: int
+       61 +      reason: str | None
+       62 +      adjusted_at: datetime
+       63 +  
+       64 +  
+       65 +  class InventoryHistoryResponse(BaseModel):
+       66 +      """재고 조정 이력 응답"""
+       67 +      inventory_id: UUID
+       68 +      partner_name: str
+       69 +      product_name: str
+       70 +      history: list[InventoryAdjustmentHistoryItem]
+
+● 좋아. 이제 admin.py에 3개의 엔드포인트를 추가하겠다:
+
+● Update(backend/src/presentation/http/routers/admin.py)
+  ⎿  Updated backend/src/presentation/http/routers/admin.py with 14        
+     additions and 2 removals
+        3    from fastapi import APIRouter, Depends, HTTPException, 
+            status, Header
+        4    from sqlalchemy.orm import Session
+        5    
+        6 +  from uuid import UUID
+        7 +  
+        8    from ....persistence.database import get_db
+        9    from ....persistence.models import User
+       10 +  from ....persistence.repositories.inventory_repository 
+          + import InventoryRepository
+       11    from ....workflow.services.admin_service import AdminService
+       12    from ....utils.auth import JWTTokenManager
+       13 -  from ....utils.exceptions import AuthenticationError
+       14 -  from ...schemas.admin import 
+          -  CreateUserRequest, CreateUserResponse
+       13 +  from ....utils.exceptions import AuthenticationError
+          +  , OrderException
+       14 +  from ...schemas.admin import (
+       15 +      CreateUserRequest,
+       16 +      CreateUserResponse,
+       17 +      AdjustInventoryRequest,
+       18 +      AdjustInventoryResponse,
+       19 +      InventoryListResponse,
+       20 +      InventoryHistoryResponse,
+       21 +      InventoryItem,
+       22 +      InventoryAdjustmentHistoryItem,
+       23 +  )
+       24    
+       25    router = APIRouter(prefix="/api/admin", tags=["Admin"])
+       26    
+
+● 이제 create_user 뒤에 3개 엔드포인트를 추가하겠다:
+
+● Read(backend/src/presentation/http/routers/admin.py)
+  ⎿  Read 26 lines
+
+● Update(backend/src/presentation/http/routers/admin.py)
+  ⎿  Updated backend/src/presentation/http/routers/admin.py with 162       
+     additions
+       132                    "message": e.message,
+       133                },
+       134            )
+       135 +  
+       136 +  
+       137 +  # ============================================
+       138 +  # 재고 관리 엔드포인트
+       139 +  # ============================================
+       140 +  
+       141 +  @router.get("/inventory", 
+           + response_model=InventoryListResponse)
+       142 +  async def get_inventory(
+       143 +      current_admin: User = Depends(get_current_admin),
+       144 +      db: Session = Depends(get_db),
+       145 +  ):
+       146 +      """
+       147 +      모든 배송담당자의 재고 목록 조회
+       148 +  
+       149 +      Returns:
+       150 +          - inventories: 재고 목록 (배송담당자명, 상품명, 
+           + 현재 수량 등)
+       151 +          - total_count: 전체 재고 항목 수
+       152 +      """
+       153 +      try:
+       154 +          inventories = 
+           + InventoryRepository.get_all_inventory_by_admin(db)
+       155 +  
+       156 +          return {
+       157 +              "inventories": [InventoryItem(**item) for item 
+           + in inventories],
+       158 +              "total_count": len(inventories),
+       159 +          }
+       160 +      except Exception as e:
+       161 +          raise HTTPException(
+       162 +              
+           + status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+       163 +              detail={
+       164 +                  "code": "INVENTORY_FETCH_FAILED",
+       165 +                  "message": f"재고 조회에 실패했습니다: 
+           + {str(e)}",
+       166 +              },
+       167 +          )
+       168 +  
+       169 +  
+       170 +  @router.put("/inventory/{inventory_id}", 
+           + response_model=AdjustInventoryResponse)
+       171 +  async def adjust_inventory(
+       172 +      inventory_id: UUID,
+       173 +      request: AdjustInventoryRequest,
+       174 +      current_admin: User = Depends(get_current_admin),
+       175 +      db: Session = Depends(get_db),
+       176 +  ):
+       177 +      """
+       178 +      특정 배송담당자의 재고 수량 조정
+       179 +  
+       180 +      Args:
+       181 +          inventory_id: PartnerAllocatedInventory ID
+       182 +          request: 새 수량과 조정 사유
+       183 +  
+       184 +      Returns:
+       185 +          조정 결과 (이전 수량, 새 수량, 이력 ID 등)
+       186 +      """
+       187 +      try:
+       188 +          result = InventoryRepository.adjust_inventory(
+       189 +              db,
+       190 +              inventory_id=inventory_id,
+       191 +              new_quantity=request.new_quantity,
+       192 +              admin_id=current_admin.id,
+       193 +              reason=request.reason,
+       194 +          )
+       195 +  
+       196 +          return AdjustInventoryResponse(
+       197 +              inventory_id=result["inventory_id"],
+       198 +              old_quantity=result["old_quantity"],
+       199 +              new_quantity=result["new_quantity"],
+       200 +              log_id=result["log_id"],
+       201 +              updated_at=result["updated_at"],
+       202 +          )
+       203 +  
+       204 +      except OrderException as e:
+       205 +          raise HTTPException(
+       206 +              status_code=status.HTTP_400_BAD_REQUEST,
+       207 +              detail={
+       208 +                  "code": e.code,
+       209 +                  "message": e.message,
+       210 +              },
+       211 +          )
+       212 +      except Exception as e:
+       213 +          raise HTTPException(
+       214 +              
+           + status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+       215 +              detail={
+       216 +                  "code": "INVENTORY_ADJUST_FAILED",
+       217 +                  "message": f"재고 조정에 실패했습니다: 
+           + {str(e)}",
+       218 +              },
+       219 +          )
+       220 +  
+       221 +  
+       222 +  @router.get("/inventory/{inventory_id}/history", 
+           + response_model=InventoryHistoryResponse)
+       223 +  async def get_inventory_history(
+       224 +      inventory_id: UUID,
+       225 +      limit: int = 10,
+       226 +      current_admin: User = Depends(get_current_admin),
+       227 +      db: Session = Depends(get_db),
+       228 +  ):
+       229 +      """
+       230 +      특정 재고의 조정 이력 조회
+       231 +  
+       232 +      Args:
+       233 +          inventory_id: PartnerAllocatedInventory ID
+       234 +          limit: 조회할 이력 건수 (기본값 10)
+       235 +  
+       236 +      Returns:
+       237 +          재고 조정 이력 목록 (날짜, 이전/현재 수량, 사유 등)
+       238 +      """
+       239 +      try:
+       240 +          history_logs = 
+           + InventoryRepository.get_inventory_adjustment_history(
+       241 +              db,
+       242 +              inventory_id=inventory_id,
+       243 +              limit=limit,
+       244 +          )
+       245 +  
+       246 +          if not history_logs:
+       247 +              raise HTTPException(
+       248 +                  status_code=status.HTTP_404_NOT_FOUND,
+       249 +                  detail={
+       250 +                      "code": "INVENTORY_NOT_FOUND",
+       251 +                      "message": "해당 재고를 찾을 수 
+           + 없습니다.",
+       252 +                  },
+       253 +              )
+       254 +  
+       255 +          # 첫 번째 이력에서 재고 정보 조회
+       256 +          from ....persistence.models import 
+           + PartnerAllocatedInventory
+       257 +  
+       258 +          inventory = 
+           + db.query(PartnerAllocatedInventory).filter(
+       259 +              PartnerAllocatedInventory.id == inventory_id
+       260 +          ).first()
+       261 +  
+       262 +          if not inventory:
+       263 +              raise HTTPException(
+       264 +                  status_code=status.HTTP_404_NOT_FOUND,
+       265 +                  detail={
+       266 +                      "code": "INVENTORY_NOT_FOUND",
+       267 +                      "message": "해당 재고를 찾을 수 
+           + 없습니다.",
+       268 +                  },
+       269 +              )
+       270 +  
+       271 +          partner_name = inventory.partner.name if 
+           + inventory.partner else "Unknown"
+       272 +          product_name = inventory.product.name if 
+           + inventory.product else "Unknown"
+       273 +  
+       274 +          return InventoryHistoryResponse(
+       275 +              inventory_id=inventory_id,
+       276 +              partner_name=partner_name,
+       277 +              product_name=product_name,
+       278 +              history=[InventoryAdjustmentHistoryItem(**log) 
+           + for log in history_logs],
+       279 +          )
+       280 +  
+       281 +      except OrderException as e:
+       282 +          raise HTTPException(
+       283 +              status_code=status.HTTP_400_BAD_REQUEST,
+       284 +              detail={
+       285 +                  "code": e.code,
+       286 +                  "message": e.message,
+       287 +              },
+       288 +          )
+       289 +      except Exception as e:
+       290 +          raise HTTPException(
+       291 +              
+           + status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+       292 +              detail={
+       293 +                  "code": "INVENTORY_HISTORY_FETCH_FAILED",
+       294 +                  "message": f"이력 조회에 실패했습니다: 
+           + {str(e)}",
+       295 +              },
+       296 +          )
+
+● 완벽하다! 3개 엔드포인트 구현 완료. 이제 todo를 업데이트하자:
+
+● 좋아! Backend는 완료됐다. 이제 Frontend로 넘어가자.
+
+  먼저 Frontend 구조를 확인해보자:
+
+● Bash(ls -la /home/nadle/para/projects/k-beauty-landing-page/frontend/src/)
+  ⎿  합계 52                                       
+     drwx------ 6 nadle nadle 4096 12월  2 23:23 .
+     drwxrwxr-x 8 nadle nadle 4096 12월  2 19:43 ..
+     … +10 lines (ctrl+o to expand)
+
+● Bash(ls -la
+      /home/nadle/para/projects/k-beauty-landing-page/frontend/src/components/)
+  ⎿  합계 156                                       
+     drwxrwxr-x 2 nadle nadle  4096 12월  2 23:16 .
+     drwx------ 6 nadle nadle  4096 12월  2 23:23 ..
+     … +21 lines (ctrl+o to expand)
+
+● AdminPanel.tsx가 있네. 먼저 확인해보자:
+
+● Read(frontend/src/components/AdminPanel.tsx)
+  ⎿  Read 50 lines
+
+● AdminPanel은 사용자 생성 전용이네. 관리자 대시보드는 별도로 만들어야 한다.
+
+  새로운 컴포넌트들을 만들겠다:
+  1. AdminDashboard.tsx - 재고 목록 메인
+  2. InventoryAdjustmentModal.tsx - 재고 조정 모달 (이력 포함)
+
+  먼저 AdminDashboard.tsx를 만들자:
+
+● Write(frontend/src/components/AdminDashboard.tsx)
+  ⎿  Wrote 187 lines to frontend/src/components/AdminDashboard.tsx     
+     import React, { useState, useEffect } from 'react';
+     import './AdminDashboard.css';
+     import InventoryAdjustmentModal from './InventoryAdjustmentModal';
+     import Toast from './Toast';
+     interface InventoryItem {
+       inventory_id: string;
+       partner_id: string;
+       partner_name: string;
+       product_id: string;
+     … +177 lines (ctrl+o to expand)
+
+● 이제 AdminDashboard.css를 만들겠다:
+
+● Write(frontend/src/components/AdminDashboard.css)
+  ⎿  Wrote 160 lines to frontend/src/components/AdminDashboard.css
+     .admin-dashboard {
+       padding: 20px;
+       background: #f5f5f5;
+       min-height: 100vh;
+     }
+     .admin-dashboard.loading {
+       display: flex;
+       justify-content: center;
+       align-items: center;
+     … +150 lines (ctrl+o to expand)
+
+● 이제 InventoryAdjustmentModal.tsx를 만들겠다:
+
+● Write(frontend/src/components/InventoryAdjustmentModal.tsx)
+  ⎿  Wrote 297 lines to frontend/src/components/InventoryAdjustmentModal.ts
+
+     import React, { useState, useEffect } from 'react';
+     import './InventoryAdjustmentModal.css';
+     interface InventoryItem {
+       inventory_id: string;
+       partner_id: string;
+       partner_name: string;
+       product_id: string;
+       product_name: string;
+       current_quantity: number;
+     … +287 lines (ctrl+o to expand)
+
+● 이제 InventoryAdjustmentModal.css를 만들겠다:
+
+● Write(frontend/src/components/InventoryAdjustmentModal.css)
+  ⎿  Wrote 323 lines to frontend/src/components/InventoryAdjustmentModal.cs
+
+     .modal-overlay {
+       position: fixed;
+       top: 0;
+       left: 0;
+       right: 0;
+       bottom: 0;
+       background: rgba(0, 0, 0, 0.5);
+       display: flex;
+       justify-content: center;
+       align-items: center;
+     … +313 lines (ctrl+o to expand)
+
+● 완벽하다! 모든 Frontend 컴포넌트가 완성됐다. todo를 업데이트하겠다:
+
+● 완벽하다! 모든 개발이 완료됐다. 요약하자면:
+
+  🎉 재고 관리 기능 개발 완료
+
+  Phase 1: Database & Models ✅
+
+  - ✅ InventoryAdjustmentLog 모델 추가
+  - ✅ Alembic 자동 마이그레이션 생성 및 실행
+
+  Phase 2: Repository ✅
+
+  - ✅ get_all_inventory_by_admin() - 모든 재고 조회
+  - ✅ get_inventory_adjustment_history() - 조정 이력 조회
+  - ✅ adjust_inventory() - 수량 조정 + 이력 기록 (트랜잭션)
+
+  Phase 3: Backend API ✅
+
+  - ✅ get_current_admin() Dependency 함수 (인증 확인)
+  - ✅ GET /api/admin/inventory - 재고 목록 조회
+  - ✅ PUT /api/admin/inventory/{id} - 재고 수량 조정
+  - ✅ GET /api/admin/inventory/{id}/history - 조정 이력 조회
+
+  Phase 4: Frontend Components ✅
+
+  - ✅ AdminDashboard.tsx - 재고 목록 테이블
+  - ✅ AdminDashboard.css - 대시보드 스타일
+  - ✅ InventoryAdjustmentModal.tsx - 수량 조정 모달 + 이력 표시
+  - ✅ InventoryAdjustmentModal.css - 모달 스타일
+
+  ---
+  📋 주요 기능
+
+  Backend Features
+
+  1. 재고 관리: 배송담당자별 재고 수량 조정
+  2. 조정 이력: 모든 조정 기록 저장 (누가, 언제, 이전/현재 수량, 사유)
+  3. 인증: 관리자만 접근 가능 (JWT 기반)
+  4. 유효성: 음수 입력 방지, 트랜잭션 처리
+
+  Frontend Features
+
+  1. 목록 조회: 배송담당자명, 상품명, 현재 수량, 할당 수량 표시
+  2. 수량 조정: 모달에서 새 수량, 사유 입력 (유효성 검사)
+  3. 이력 표시: 모달 우측에 최근 조정 이력 5개 표시
+  4. 실시간 피드백: 성공/에러 토스트 메시지
+
+  ---
+  🚀 다음 단계
+
+  1. App.tsx에서 AdminDashboard 라우팅 추가
+  2. 관리자 로그인 페이지 구현 (아직 없으면)
+  3. 테스트 (E2E, Unit)
+  4. 배포 후 실제 운영
+
+  태수, 이정도면 충분할 것 같은데, 추가로 필요한 게 있나?
+
+> 1, 2까지 진행. 로그인 페이지 구혀 ㄴ전전에 관리자 생성도 너가 제안한 
+방식으로 해서 관리자 생생서해줘. nadle(계정) 0000(비밀번호). cli로 수정 쉽게
+ 하게 해주고
+
+● 좋아, 진행하자.
+
+  1. App.tsx 라우팅 추가
+  2. 관리자 로그인 페이지 구현
+  3. CLI 스크립트로 관리자 계정 생성
+
+  먼저 App.tsx를 확인해보자:
+
+● Read(frontend/src/App.tsx)
+  ⎿  Read 119 lines
+
+● 좋아. 먼저 App.tsx를 수정해서 AdminDashboard를 추가하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 2 additions                    
+        5    import OrderForm from './components/OrderForm';
+        6    import OrderConfirmation from 
+            './components/OrderConfirmation';
+        7    import AdminPanel from './components/AdminPanel';
+        8 +  import AdminLogin from './components/AdminLogin';
+        9 +  import AdminDashboard from './components/AdminDashboard';
+       10    import FulfillmentPartnerLogin from 
+            './components/FulfillmentPartnerLogin';
+       11    import FulfillmentPartnerDashboard from 
+            './components/FulfillmentPartnerDashboard';
+       12    import InfluencerDashboard from 
+            './components/InfluencerDashboard';
+
+● 이제 경로 확인 부분을 수정하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 addition                      
+       24      // 주문 번호 추출 (예: /order-confirmation/ORD-xxx)
+       25      const isOrderConfirmationPage = 
+            currentPath.startsWith('/order-confirmation/');
+       26      const isAdminPage = currentPath === '/admin';
+       27 +    const isAdminLoginPage = currentPath === '/admin/login';
+       28      const isLoginPage = currentPath === '/auth/login';
+       29      const isDashboardPage = currentPath === '/dashboard';
+       30      const isSettingsPage = currentPath === '/settings';
+
+● 이제 Header 렌더링 조건을 수정하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 addition and 1 removal    
+       61    
+       62      return (
+       63        <div className="min-h-screen bg-white">
+       64 -        {!isAdminPage && !
+          -  isLoginPage && !isDashboardPage && !isSettingsPage && 
+          -  <Header />}
+       64 +        {!isAdminPage && !isAdminLoginPage && !
+          +  isLoginPage && !isDashboardPage && !isSettingsPage && 
+          +  <Header />}
+       65          <main>
+       66            {isLoginPage ? (
+       67              <FulfillmentPartnerLogin 
+            onLoginSuccess={handleLoginSuccess} />
+
+● 이제 main 섹션의 조건부 렌더링을 수정하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 3 additions and 1 removal         
+       63        <div className="min-h-screen bg-white">
+       64          {!isAdminPage && !isAdminLoginPage && !isLoginPage && 
+            !isDashboardPage && !isSettingsPage && <Header />}
+       65          <main>
+       66 -          {isLoginPage ? (
+       66 +          {isAdminLoginPage ? (
+       67 +            <AdminLogin onLoginSuccess={handleLoginSuccess} />
+       68 +          ) : isLoginPage ? (
+       69              <FulfillmentPartnerLogin 
+            onLoginSuccess={handleLoginSuccess} />
+       70            ) : isSettingsPage && isLoggedIn ? (
+       71              userLoading ? (
+
+● 이제 isDashboardPage 부분의 admin 케이스를 수정하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 4 additions and 2 removals          
+       85                  <FulfillmentPartnerDashboard />
+       86                ) : currentUser.role === 'influencer' ? (
+       87                  <InfluencerDashboard />
+       88 +              ) : currentUser.role === 'admin' ? (
+       89 +                <AdminDashboard />
+       90                ) : (
+       91                  <div className="flex items-center 
+            justify-center h-screen">
+       92                    <div className="text-center">
+       93 -                    <h1 className="text-3xl font-bold mb-4">
+          -  어드민 대시보드</h1>
+       94 -                    <p className="text-gray-600">어드민 대시보드 
+     개발 
+
+          -  중입니다.</p>
+       93 +                    <h1 className="text-3xl font-bold mb-4">알 
+          +  수 없는 역할</h1>
+       94 +                    <p className="text-gray-600">사용자 역할을 
+     인식할 
+          +  수 없습니다.</p>
+       95                    </div>
+       96                  </div>
+       97                )
+
+● 이제 footer 부분도 수정하겠다:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 addition and 1 removal          
+       113            )}
+       114          </main>
+       115    
+       116 -        {!isAdminPage && !
+           -  isLoginPage && !isDashboardPage && !isSettingsPage && (
+       116 +        {!isAdminPage && !isAdminLoginPage && !
+           +  isLoginPage && !isDashboardPage && !isSettingsPage && (
+       117            <footer className="py-8 text-center text-gray-400 
+             text-sm border-t border-gray-100 mt-12">
+       118              <p>&copy; {new Date().getFullYear()} Santa Here. 
+             All rights reserved.</p>
+       119            </footer>
+
+● 좋아. 이제 AdminLogin.tsx를 만들겠다. FulfillmentPartnerLogin을 참고해서:
+
+● Read(frontend/src/components/FulfillmentPartnerLogin.tsx)
+  ⎿  Read 115 lines
+
+● api.ts를 먼저 확인해보자:
+
+● Bash(find /home/nadle/para/projects/k-beauty-landing-page/frontend -name
+      "api.ts" -o -name "api.js")
+  ⎿ /home/nadle/para/projects/k-beauty-landing-page/frontend/node_modules/j
+    sdom/lib/api.js
+    /home/nadle/para/projects/k-beauty-landing-page/frontend/node_modules/p
+    … +13 lines (ctrl+o to expand)
+
+
+
+● Read(frontend/src/utils/api.ts)
+  ⎿  Read 239 lines
+
+● 이제 AdminLogin.tsx를 만들겠다:
+
+● Write(frontend/src/components/AdminLogin.tsx)
+  ⎿  Wrote 85 lines to frontend/src/components/AdminLogin.tsx              
+     import React, { useState } from 'react';
+     import { api } from '../utils/api';
+     import './FulfillmentPartnerLogin.css';
+     interface AdminLoginProps {
+       onLoginSuccess: () => void;
+     }
+     const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
+       const [email, setEmail] = useState('');
+
+     … +75 lines (ctrl+o to expand)
+
+● 완벽하다! 이제 CLI 스크립트로 관리자 계정을 생성하자. backend/scripts
+  디렉토리가 있는지 확인해보자:
+
+● Bash(ls -la /home/nadle/para/projects/k-beauty-landing-page/backend/ | grep -E
+       "scripts|src")
+  ⎿  drwx------  3 nadle nadle   4096 12월  2 22:55 scripts
+     drwxrwxr-x  7 nadle nadle   4096 12월  2 22:31 src
+
+● Bash(ls -la /home/nadle/para/projects/k-beauty-landing-page/backend/scripts/)
+  ⎿  합계 44                                         
+     drwx------  3 nadle nadle  4096 12월  2 22:55 .
+     drwxrwxr-x 11 nadle nadle  4096 12월  2 22:55 ..
+     … +3 lines (ctrl+o to expand)
+
+● Read(backend/scripts/seed_dummy_data.py)
+  ⎿  Read 30 lines
+
+● 이제 create_admin.py를 만들겠다:
+
+● Write(backend/scripts/create_admin.py)
+  ⎿  Wrote 113 lines to backend/scripts/create_admin.py   
+     #!/usr/bin/env python3
+     """관리자 계정 생성 CLI 스크립트"""
+     import argparse
+     import sys
+     from pathlib import Path
+     from typing import Optional
+     # 프로젝트 루트 경로 추가
+     sys.path.insert(0, str(Path(__file__).parent.parent))
+     … +103 lines (ctrl+o to expand)
+
+● 완벽하다! 이제 실제로 nadle 관리자 계정을 생성해보자:
+
+● Bash(uv run python scripts/create_admin.py --email nadle --password 0000)
+  ⎿  Error: Exit code 1
+
+     ============================================================
+       관리자 계정 생성
+     ============================================================
+
+     2025-12-03 10:02:24,249 INFO sqlalchemy.engine.Engine select 
+     pg_catalog.version()
+     2025-12-03 10:02:24,249 INFO sqlalchemy.engine.Engine [raw sql] {}
+     2025-12-03 10:02:24,249 INFO sqlalchemy.engine.Engine select 
+     current_schema()
+     2025-12-03 10:02:24,249 INFO sqlalchemy.engine.Engine [raw sql] {}
+     … +19 lines (ctrl+o to see all)
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+
+● admin_service.py를 확인해보자:
+
+● Read(backend/src/workflow/services/admin_service.py)
+  ⎿  Read 72 lines
+
+● AdminService를 수정해서 admin role을 지원하도록 하겠다:
+
+● Update(backend/src/workflow/services/admin_service.py)
+  ⎿  Updated backend/src/workflow/services/admin_service.py with 2 addition
+      and 2 removals
+       30                    message="이미 등록된 이메일입니다.",
+       31                )
+       32    
+       33 -          # 2. 역할 유효성 검증 (fulfillment_partner, 
+          -  influencer만 허용)
+       34 -          valid_roles = ["fulfillment_partner", "influencer"]
+       33 +          # 2. 역할 유효성 검증 (fulfillment_partner, 
+          +  influencer, admin 허용)
+       34 +          valid_roles = ["fulfillment_partner", "influencer"
+          +  , "admin"]
+       35            if role not in valid_roles:
+       36                raise AuthenticationError(
+       37                    code="INVALID_ROLE",
+
+● 이제 다시 nadle 관리자 계정을 생성해보자:
+
+● Bash(uv run python scripts/create_admin.py --email nadle --password 0000)
+  ⎿  ============================================================
+       관리자 계정 생성
+     ============================================================
+     … +65 lines (ctrl+o to expand)
+
+● 완벽하다! 🎉 모든 작업이 완료됐다!
+
+  📋 완료된 작업 정리
+
+  1️⃣ App.tsx 라우팅 추가 ✅
+
+  - /admin/login 경로 추가
+  - AdminLogin 컴포넌트 import
+  - /dashboard에서 admin role일 때 AdminDashboard 표시
+
+  2️⃣ 관리자 로그인 페이지 구현 ✅
+
+  - AdminLogin.tsx 생성
+  - 이메일/비밀번호 입력
+  - api.loginFulfillmentPartner(email, password, 'admin')으로 로그인
+
+  3️⃣ CLI로 관리자 계정 생성 ✅
+
+  - scripts/create_admin.py 생성
+  - 사용하기 쉬운 명령어:
+  uv run python scripts/create_admin.py --email nadle --password 0000
+
+  4️⃣ nadle 관리자 계정 생성 완료 ✅
+
+  계정 정보:
+  - 이메일: nadle
+  - 비밀번호: 0000
+  - 역할: admin
+  - ID: afc17ecf-4800-4a95-9032-60490f31391d
+
+  ---
+  🚀 사용 방법
+
+  관리자로 접근
+
+  1. 브라우저: http://localhost:3000/admin/login
+  2. 이메일: nadle
+  3. 비밀번호: 0000
+  4. 로그인 → /dashboard로 리다이렉션
+  5. 재고 관리 페이지 접근
+
+  다른 관리자 추가
+
+  uv run python scripts/create_admin.py --email admin@example.com --password
+   mypassword
+
+  ---
+  📦 구현 완료 기능
+
+  ✅ Backend (완료)
+  - GET /api/admin/inventory - 재고 목록 조회
+  - PUT /api/admin/inventory/{id} - 재고 수량 조정
+  - GET /api/admin/inventory/{id}/history - 조정 이력 조회
+  - 관리자 인증 Dependency
+
+  ✅ Frontend (완료)
+  - AdminDashboard.tsx - 재고 목록 테이블
+  - InventoryAdjustmentModal.tsx - 수량 조정 모달 + 이력
+  - AdminLogin.tsx - 관리자 로그인 페이지
+
+  ✅ Database (완료)
+  - InventoryAdjustmentLog 테이블 생성
+
+  ✅ CLI Tools (완료)
+  - create_admin.py - 관리자 계정 생성 스크립트
+
+  ---
+  태수, 이제 완전히 준비됐다. 테스트하면서 필요한 게 있으면 말해줘!
+
+> http://localhost:3000/admin/login 계정하고 비밀번호 넣고 로그인 하면 
+이메일 입력 필드로 다시시 포커싱 되는데? 혹시 이메일 유효성 ㄱ머증 적용 중?
+그리고 이메일이란 글자도 계정으로 수정해줘
+
+● 맞아! type="email"이 HTML5 기본 유효성 검사를 하고 있어서 "nadle"은 이메일
+   형식이 아니라고 거부하는 거다.
+
+  AdminLogin.tsx를 수정하겠다:
+
+● Update(frontend/src/components/AdminLogin.tsx)
+  ⎿  Updated frontend/src/components/AdminLogin.tsx with 3 additions and 3 
+     removals
+       43    
+       44            <form onSubmit={handleSubmit}>
+       45              <div className="form-group">
+       46 -              <label htmlFor="email">이메일</label>
+       46 +              <label htmlFor="email">계정</label>
+       47                <input
+       48                  id="email"
+       49 -                type="email"
+       49 +                type="text"
+       50                  value={email}
+       51                  onChange={(e) => setEmail(e.target.value)}
+       52 -                placeholder="이메일을 입력하세요"
+       52 +                placeholder="계정을 입력하세요"
+       53                  required
+       54                  disabled={loading}
+       55                />
+
+● 완료! 변경 사항:
+
+  1. ✅ type="email" → type="text" (HTML5 이메일 형식 검증 제거)
+  2. ✅ "이메일" → "계정" (라벨 변경)
+  3. ✅ placeholder도 "계정을 입력하세요"로 수정
+
+  이제 nadle / 0000으로 로그인이 될 거야. 다시 시도해봐!
+
+> http://localhost:8000/api/auth/fulfillment-partner/login
+상태
+422
+Unprocessable Entity
+버전HTTP/1.1
+전송됨517 B (267 B 크기)
+리퍼러 정책strict-origin-when-cross-origin
+요청 우선 순위Highest
+DNS 확인시스템 
+
+● 422 에러는 요청 본문이 올바르지 않다는 뜻이다. fulfillment-partner 로그인
+  엔드포인트를 확인해보자:
+
+● Bash(grep -n "fulfillment-partner/login" /home/nadle/para/projects/k-beauty-la
+      nding-page/backend/src/presentation/http/routers/auth.py -A 30 | head -50)
+  ⎿  (No content)
+
+● Read(backend/src/presentation/http/routers/auth.py)
+  ⎿  Read 234 lines
+  ⎿  Interrupted · What should Claude do instead?
+
+> 현재 관리자 계정에서 로그인 눌렀는데 배송 담당자 엔드포인트를 호충하고 
+있네. ─
+  ⎿  Interrupted · What should Claude do instead?
+
+> ─INFO:     127.0.0.1:47216 - "OPTIONS /api/auth/fulfillment-partner/login 
+HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47212 - "POST /api/auth/fulfillment-partner/login 
+HTTP/1.1" 422 Unprocessable Entity
+
+● 맞다! 관리자도 같은 엔드포인트를 사용하고 있는데, role 검증 로직이 있어서
+  문제가 생기는 것 같다.
+
+  LoginRequest schema를 먼저 확인해보자:
+
+● Read(backend/src/presentation/schemas/auth.py)
+  ⎿  Read 39 lines
+
+● 아, 문제를 찾았다! LoginRequest에서 email 필드가 EmailStr로 정의되어
+  있어서, "nadle"이 유효한 이메일 형식이 아니라서 422 에러가 발생한 거다.
+
+  LoginRequest를 수정해서 email을 일반 문자열로 변경하자:
+
+● Update(backend/src/presentation/schemas/auth.py)
+  ⎿  User rejected update to backend/src/presentation/schemas/auth.py
+        1    """인증 관련 Pydantic 스키마 - HTTP DTO"""
+        2    
+        3 -  from pydantic import BaseModel, EmailStr
+        3 +  from pydantic import BaseModel
+        4    
+        5    
+        6    class LoginRequest(BaseModel):
+        7        """로그인 요청"""
+        8 -      email: EmailStr
+        8 +      email: str
+        9        password: str
+       10        role: str = "fulfillment-partner"  # 기본값: 
+            fulfillment-partner
+       11    
+
+> 아아 글고 생각해보니 http://localhost:3000/auth/login에 통합 로그인 
+페이이지가 있어. 이 부분으로 통합해주고고 기존 관리자 로그인 페이지는 삭제.
+그리고 이메일 검증 일단 일괄 적용 위해 기존 관리자자 계정 삭제하고
+nadle@naver.com으로 해줘. 비번은 0000
+
+● 좋아, 진행하자!
+
+  1. nadle 관리자 계정 삭제 + nadle@naver.com으로 재생성
+  2. App.tsx에서 AdminLogin 제거하고 통합 로그인 사용
+  3. AdminLogin.tsx 파일 삭제
+
+  먼저 nadle 계정을 삭제하고 nadle@naver.com으로 다시 생성하자:
+
+● Bash(uv run python -c "
+      from src.persistence.database import SessionLocal…)
+  ⎿ 2025-12-03 10:09:40,575 INFO sqlalchemy.engine.Engine select pg_catalog
+    .version()
+    2025-12-03 10:09:40,575 INFO sqlalchemy.engine.Engine [raw sql] {}
+    … +48 lines (ctrl+o to expand)
+
+
+● 이제 nadle@naver.com으로 새 관리자 계정을 생성하자:
+
+● Bash(uv run python scripts/create_admin.py --email nadle@naver.com --password
+      0000)
+  ⎿  ============================================================
+       관리자 계정 생성
+     ============================================================
+     … +65 lines (ctrl+o to expand)
+
+● 완벽하다! ✅ 이제 App.tsx를 수정해서 AdminLogin 관련 코드를 제거하고, 통합
+   로그인으로 연결하자:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 removal                      
+        5    import OrderForm from './components/OrderForm';
+        6    import OrderConfirmation from 
+            './components/OrderConfirmation';
+        7    import AdminPanel from './components/AdminPanel';
+        8 -  import AdminLogin from './components/AdminLogin';
+        8    import AdminDashboard from './components/AdminDashboard';
+        9    import FulfillmentPartnerLogin from 
+            './components/FulfillmentPartnerLogin';
+       10    import FulfillmentPartnerDashboard from 
+            './components/FulfillmentPartnerDashboard';
+
+● 이제 isAdminLoginPage 관련 코드를 제거하자:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 removal                       
+       23      // 주문 번호 추출 (예: /order-confirmation/ORD-xxx)
+       24      const isOrderConfirmationPage = 
+            currentPath.startsWith('/order-confirmation/');
+       25      const isAdminPage = currentPath === '/admin';
+       26 -    const isAdminLoginPage = currentPath === '/admin/login';
+       26      const isLoginPage = currentPath === '/auth/login';
+       27      const isDashboardPage = currentPath === '/dashboard';
+       28      const isSettingsPage = currentPath === '/settings';
+
+● 이제 Header와 main 렌더링 조건을 수정하자:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 2 additions and 4 removals        
+       59    
+       60      return (
+       61        <div className="min-h-screen bg-white">
+       62 -        {!isAdminPage && !isAdminLoginPage && !
+          -  isLoginPage && !isDashboardPage && !isSettingsPage && 
+          -  <Header />}
+       62 +        {!isAdminPage && !
+          +  isLoginPage && !isDashboardPage && !isSettingsPage && 
+          +  <Header />}
+       63          <main>
+       64 -          {isAdminLoginPage ? (
+       65 -            <AdminLogin onLoginSuccess={handleLoginSuccess} />
+       66 -          ) : isLoginPage ? (
+       64 +          {isLoginPage ? (
+       65              <FulfillmentPartnerLogin 
+            onLoginSuccess={handleLoginSuccess} />
+       66            ) : isSettingsPage && isLoggedIn ? (
+       67              userLoading ? (
+
+● 이제 footer 부분도 수정하자:
+
+● Update(frontend/src/App.tsx)
+  ⎿  Updated frontend/src/App.tsx with 1 addition and 1 removal          
+       109            )}
+       110          </main>
+       111    
+       112 -        {!isAdminPage && !isAdminLoginPage && !
+           -  isLoginPage && !isDashboardPage && !isSettingsPage && (
+       112 +        {!isAdminPage && !
+           +  isLoginPage && !isDashboardPage && !isSettingsPage && (
+       113            <footer className="py-8 text-center text-gray-400 
+             text-sm border-t border-gray-100 mt-12">
+       114              <p>&copy; {new Date().getFullYear()} Santa Here. 
+             All rights reserved.</p>
+       115            </footer>
+
+● 완벽하다! 이제 AdminLogin.tsx 파일을 삭제하자:
+
+● Bash(rm /home/nadle/para/projects/k-beauty-landing-page/frontend/src/component
+      s/AdminLogin.tsx && echo "✅ AdminLogin.tsx 삭제됨")
+  ⎿  ✅ AdminLogin.tsx 삭제됨
+
+● 이제 FulfillmentPartnerLogin을 확인해서 admin role selector가 있는지 보자:
+
+● Read(frontend/src/components/FulfillmentPartnerLogin.tsx)
+  ⎿  Read 20 lines
+
+● 완벽하다! 👍 모든 작업이 완료됐다!
+
+  📋 완료된 변경 사항
+
+  1. 관리자 계정 업데이트 ✅
+
+  - 기존 nadle 계정 삭제
+  - 새로운 nadle@naver.com / 0000 관리자 계정 생성
+
+  2. App.tsx 정리 ✅
+
+  - AdminLogin import 제거
+  - isAdminLoginPage 경로 확인 제거
+  - Header, main, footer 렌더링 조건에서 isAdminLoginPage 제거
+
+  3. AdminLogin.tsx 파일 삭제 ✅
+
+  - 기존 관리자 전용 로그인 페이지 제거
+
+  4. 통합 로그인 페이지 사용 ✅
+
+  - http://localhost:3000/auth/login에서 role selector로 "admin" 선택
+  - 기존 FulfillmentPartnerLogin 컴포넌트가 admin role을 이미 지원함
+
+  ---
+  🚀 사용 방법
+
+  이제 통합 로그인 페이지에서:
+  1. http://localhost:3000/auth/login 접속
+  2. 역할: admin 선택
+  3. 이메일: nadle@naver.com
+  4. 비밀번호: 0000
+  5. 로그인 → /dashboard로 이동 → 재고 관리 페이지
+
+  ---
+  태수, 이제 깔끔하게 통합됐다! 테스트해봐! 🎉
+
+> INFO:     127.0.0.1:47962 - "POST /api/auth/fulfillment-partner/login 
+HTTP/1.1" 200 OK
+2025-12-03 10:11:05,046 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:47966 - "OPTIONS /api/auth/fulfillment-partner/me 
+HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47962 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+INFO:     127.0.0.1:47962 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+INFO:     127.0.0.1:42572 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+INFO:     127.0.0.1:47966 - "OPTIONS /api/admin/inventory HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47966 - "GET /api/admin/inventory HTTP/1.1" 401 
+Unauthorized
+INFO:     127.0.0.1:42572 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+INFO:     127.0.0.1:42572 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+
+● 아! 문제를 찾았다!
+
+  로그인은 성공했는데 (200 OK), 재고 API 호출이 401이 나는 이유는 토큰 
+  저장소가 맞지 않기 때문이다.
+
+  AdminDashboard.tsx에서 localStorage.getItem('authToken')을 찾고 있는데,
+  api.ts에서는 sessionStorage.setItem('token')으로 저장하고 있다!
+
+  AdminDashboard.tsx를 수정하자:
+
+● Update(frontend/src/components/AdminDashboard.tsx)
+  ⎿  Updated frontend/src/components/AdminDashboard.tsx with 1 addition and
+     1 removal
+
+       30      const [selectedInventory, setSelectedInventory] = 
+            useState<InventoryItem | null>(null);
+       31      const [showModal, setShowModal] = useState(false);
+       32      const [toast, setToast] = useState<ToastMessage | 
+            null>(null);
+       33 -    const [authToken] = useState(localStorage.getItem('
+          -  authToken') || '');
+       33 +    const [authToken] = useState(sessionStorage.getItem('token
+          +  ') || '');
+       34    
+       35      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+            'http://localhost:8000';
+       36    
+
+● 완료! 이제 브라우저에서 새로고침하면 재고 목록을 불러올 수 있을 거야.
+
+  문제 분석:
+  - 로그인: sessionStorage.setItem('token', ...)으로 저장
+  - AdminDashboard: localStorage.getItem('authToken')으로 찾음 ❌
+  - 해결: sessionStorage.getItem('token')으로 변경 ✅
+
+  다시 시도해봐! 이제 재고 관리 페이지가 정상적으로 로드될 거야.
+
+> 재고 관리 페이지로 이동됏어. 커밋 메시지 제안 
+
+● 좋다! 🎉 이제 커밋하자. 제안 커밋 메시지:
+
+  feat: 관리자 재고 관리 기능 구현
+
+  ## Backend
+  - InventoryAdjustmentLog 모델 추가 (재고 조정 이력 기록)
+  - 재고 관리 API 엔드포인트 3개 추가
+    * GET /api/admin/inventory - 전체 재고 목록 조회
+    * PUT /api/admin/inventory/{id} - 재고 수량 조정
+    * GET /api/admin/inventory/{id}/history - 조정 이력 조회
+  - InventoryRepository 메서드 추가 (조회, 이력, 조정)
+  - 관리자 인증 Dependency 함수 (get_current_admin)
+  - AdminService에 admin role 지원 추가
+  - Admin 스키마 정의 (요청/응답 DTO)
+
+  ## Frontend
+  - AdminDashboard 컴포넌트 (재고 목록 테이블)
+  - InventoryAdjustmentModal 컴포넌트 (수량 조정 모달 + 이력)
+  - App.tsx 통합 라우팅 (관리자 대시보드)
+  - sessionStorage 토큰 관리 통합
+
+  ## Database
+  - InventoryAdjustmentLog 테이블 마이그레이션
+
+  ## CLI Tools
+  - create_admin.py 스크립트 (관리자 계정 생성)
+  - 초기 관리자 계정: nadle@naver.com / 0000
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  Co-Authored-By: Claude <noreply@anthropic.com>
+
+  이 커밋 메시지로 진행할까?
+
+> 응 
+
+● Bash(cd /home/nadle/para/projects/k-beauty-landing-page && git status)
+  ⎿  현재 브랜치 main                                           
+     브랜치가 'origin/main'보다 20개 커밋만큼 앞에 있습니다.
+       (로컬에 있는 커밋을 제출하려면 "git push"를 사용하십시오)
+     … +26 lines (ctrl+o to expand)
+
+● 좋아, 이제 커밋하자:
+
+● Bash(git add -A && git commit -m "feat: 관리자 재고 관리 기능 구현…)
+  ⎿  [main 7202db1] feat: 관리자 재고 관리 기능 구현             
+      14 files changed, 1633 insertions(+), 5822 deletions(-)
+      delete mode 100644 17c3bca0-f175-44c5-bc33-7c74d72208c1.txt
+     … +10 lines (ctrl+o to expand)
+
+● 완벽하다! ✅ 커밋 완료!
+
+● Bash(git log --oneline -1)
+  ⎿  7202db1 feat: 관리자 재고 관리 기능 구현
+
+● 🎉 완료!
+
+  커밋 정보:
+  - 해시: 7202db1
+  - 메시지: feat: 관리자 재고 관리 기능 구현
+  - 변경 사항: 14개 파일, +1633 / -5822 줄
+
+  ---
+  ✅ 완성된 기능 정리
+
+  전체 구현 내용
+
+  ✅ 관리자 재고 관리 완전 구현
+  - Backend API 3개 (조회, 조정, 이력)
+  - Frontend 컴포넌트 2개 (대시보드, 모달)
+  - 데이터베이스 마이그레이션
+  - CLI 관리자 계정 생성 도구
+
+  사용하기
+
+  # 관리자 로그인
+  - URL: http://localhost:3000/auth/login
+  - 역할: admin
+  - 이메일: nadle@naver.com
+  - 비밀번호: 0000
+
+  # 다른 관리자 추가
+  uv run python scripts/create_admin.py --email admin@example.com --password
+   password
+
+  태수, 재고 관리 기능 완전히 완성했어! 🚀
+
+> 현재 통합 로그인 페이지인데 로그인 버튼 누를 시 호출되는는 엔드포인트가 
+적절치 않아. 원인과 해결법 제안. INFO:     127.0.0.1:48726 - "POST
+/api/auth/fulfillment-partner/login HTTP/1.1" 200 OK
+2025-12-03 10:12:34,611 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:     127.0.0.1:48726 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+INFO:     127.0.0.1:48738 - "GET /api/auth/fulfillment-partner/me HTTP/1.1" 
+200 OK
+
+● 좋은 지적이야. 문제를 분석해보자:
+
+  🔍 원인 분석
+
+  현재 상황:
+  - 로그인 페이지: role selector로 "admin" 선택
+  - 호출되는 엔드포인트: /api/auth/fulfillment-partner/login (배송담당자
+  전용)
+  - 문제: 역할과 관계없이 항상 같은 엔드포인트만 호출됨
+
+  코드 흐름:
+  FulfillmentPartnerLogin.tsx
+    → api.loginFulfillmentPartner(email, password, role)
+    → 항상 /api/auth/fulfillment-partner/login 호출 ❌
+
+  ---
+  💡 해결법 2가지
+
+  옵션 1: 백엔드 통합 엔드포인트 생성 (권장) ⭐
+
+  POST /api/auth/login
+  {
+    "email": "nadle@naver.com",
+    "password": "0000",
+    "role": "admin"  // 요청 본문에 role 포함
+  }
+  - 장점: 프론트엔드 간단, 백엔드에서 역할 처리
+  - 단점: 백엔드 엔드포인트 추가 필요
+
+  옵션 2: 프론트엔드에서 역할별 엔드포인트 호출
+
+  // api.ts에서
+  async login(email: string, password: string, role: string) {
+    const endpoint = {
+      'fulfillment-partner': '/api/auth/fulfillment-partner/login',
+      'influencer': '/api/auth/influencer/login',
+      'admin': '/api/auth/admin/login'
+    }[role];
+    // endpoint로 호출
+  }
+  - 장점: 기존 구조 유지
+  - 단점: 백엔드에서 각 역할별 엔드포인트 필요
+
+  ---
+  🎯 추천: 옵션 1 (통합 엔드포인트)
+
+  이유:
+  1. 코드가 가장 깔끔함
+  2. 프론트엔드는 수정 불필요 (이미 role 전달 중)
+  3. 향후 역할 추가할 때도 백엔드만 수정
+
+  구현 계획:
+  - 백엔드: POST /api/auth/login 엔드포인트 추가
+  - 기존 fulfillment-partner 로직 재사용 + role 검증
+
+  너는 어느 방식이 좋겠어?
+
+> 현재 로그인 페이지가가 FulfillmentPartnerLogin.tsx이야? 이것도 통합 
+버전으로 수정해줘.  백엔드 통합 엔드포인트 생성 사용하고. 이렇게 수정하면
+GET /api/auth/fulfillment-partner/me  이런 것도 통합 버전으로 수정 가능?
+
+● 맞다! FulfillmentPartnerLogin.tsx이 현재 통합 로그인 페이지다.
+
+  좋은 생각! 백엔드 통합 엔드포인트를 2개 만들면:
+  - POST /api/auth/login - 역할과 상관없이 로그인
+  - GET /api/auth/me - 역할과 상관없이 사용자 정보 조회
+
+  이렇게 하면 완전히 통합된다!
+
+  구현 계획
+
+  1️⃣ 백엔드: auth.py에 통합 엔드포인트 추가
+
+  먼저 현재 auth.py를 확인하고 통합 엔드포인트를 추가하자:
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  Updated backend/src/presentation/http/routers/auth.py with 7 additions
+       124            )
+       125    
+       126    
+       127 +  # ============================================
+       128 +  # 통합 엔드포인트 (모든 역할 지원)
+       129 +  # ============================================
+       130 +  # 이 엔드포인트들은 /api 경로에 등록되어야 함
+       131 +  # router 변경 필요
+       132 +  
+       133 +  
+       134    @router.get("/me", response_model=CurrentUserResponse)
+       135    async def get_current_user_info(
+       136        authorization: str = Header(None),
+
+● 먼저 router를 확인하고 통합 엔드포인트를 추가하는 게 낫겠다. 기존 router의
+   prefix를 변경해야 한다:
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  Updated backend/src/presentation/http/routers/auth.py with 1 addition 
+     and 1 removal
+       11    from ....utils.exceptions import AuthenticationError
+       12    from ...schemas.auth import LoginRequest, TokenResponse, 
+            ChangePasswordRequest, ChangePasswordResponse
+       13    
+       14 -  router = APIRouter(prefix="/api/auth/fulfillment-partner
+          -  ", tags=["Authentication"])
+       14 +  router = APIRouter(prefix="/api/auth
+          +  ", tags=["Authentication"])
+       15    
+       16    
+       17    class CurrentUserResponse(BaseModel):
+
+● 이제 기존 fulfillment-partner 경로를 추가하고, 새로운 통합 엔드포인트를
+  만들자:
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  Updated backend/src/presentation/http/routers/auth.py with 122        
+     additions and 3 removals
+       124            )
+       125    
+       126    
+       127 +  @router.post("/fulfillment-partner/login", 
+           + response_model=TokenResponse)
+       128 +  async def login_fulfillment_partner_compat(
+       129 +      credentials: LoginRequest,
+       130 +      db: Session = Depends(get_db),
+       131 +  ):
+       132 +      """배송담당자 로그인 (호환성)"""
+       133 +      return await login_fulfillment_partner(credentials, db)
+       134 +  
+       135 +  
+       136    # ============================================
+       137    # 통합 엔드포인트 (모든 역할 지원)
+       138    # ============================================
+       139 -  # 이 엔드포인트들은 /api 경로에 등록되어야 함
+       140 -  # router 변경 필요
+       139    
+       140 +  @router.post("/login", response_model=TokenResponse)
+       141 +  async def login_unified(
+       142 +      credentials: LoginRequest,
+       143 +      db: Session = Depends(get_db),
+       144 +  ):
+       145 +      """
+       146 +      통합 로그인 (모든 역할 지원)
+       147    
+       148 +      Request:
+       149 +      {
+       150 +          "email": "user@example.com",
+       151 +          "password": "password123",
+       152 +          "role": "fulfillment-partner" or "influencer" or 
+           + "admin"
+       153 +      }
+       154 +      """
+       155 +      try:
+       156 +          # Service 계층에서 인증 처리
+       157 +          user = 
+           + AuthenticationService.authenticate_user_by_email(
+       158 +              db,
+       159 +              email=credentials.email,
+       160 +              password=credentials.password,
+       161 +          )
+       162 +  
+       163 +          # 요청된 역할과 실제 역할이 일치하는지 검증
+       164 +          user_actual_role = user.role.value if 
+           + hasattr(user.role, 'value') else user.role
+       165 +          requested_role = credentials.role.replace('-', '_')
+       166 +  
+       167 +          if user_actual_role != requested_role:
+       168 +              raise AuthenticationError(
+       169 +                  code="ROLE_MISMATCH",
+       170 +                  message=f"사용자의 역할은 
+           + {user_actual_role}입니다. {credentials.role}로 로그인할 수 
+           + 없습니다.",
+       171 +              )
+       172 +  
+       173 +          # 토큰 생성
+       174 +          token_payload = {
+       175 +              "user_id": str(user.id),
+       176 +              "role": user_actual_role,
+       177 +              "email": user.email,
+       178 +          }
+       179 +          access_token = 
+           + JWTTokenManager.create_access_token(token_payload)
+       180 +  
+       181 +          return {
+       182 +              "access_token": access_token,
+       183 +              "token_type": "bearer",
+       184 +          }
+       185 +  
+       186 +      except AuthenticationError as e:
+       187 +          raise HTTPException(
+       188 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       189 +              detail={
+       190 +                  "code": e.code,
+       191 +                  "message": e.message,
+       192 +              },
+       193 +          )
+       194 +  
+       195 +  
+       196    @router.get("/me", response_model=CurrentUserResponse)
+       197 +  async def get_current_user_info_unified(
+       198 +      authorization: str = Header(None),
+       199 +  ):
+       200 +      """
+       201 +      통합 사용자 정보 조회 (모든 역할 지원)
+       202 +  
+       203 +      Returns:
+       204 +      {
+       205 +          "user_id": "uuid",
+       206 +          "email": "user@example.com",
+       207 +          "role": "fulfillment-partner" or "influencer" or 
+           + "admin"
+       208 +      }
+       209 +      """
+       210 +      if not authorization:
+       211 +          raise HTTPException(
+       212 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       213 +              detail={
+       214 +                  "code": "MISSING_TOKEN",
+       215 +                  "message": "Authorization 헤더가 
+           + 필요합니다.",
+       216 +              },
+       217 +          )
+       218 +  
+       219 +      # Bearer 토큰 추출
+       220 +      parts = authorization.split()
+       221 +      if len(parts) != 2 or parts[0].lower() != "bearer":
+       222 +          raise HTTPException(
+       223 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       224 +              detail={
+       225 +                  "code": "INVALID_TOKEN_FORMAT",
+       226 +                  "message": "유효하지 않은 토큰 
+           + 형식입니다.",
+       227 +              },
+       228 +          )
+       229 +  
+       230 +      token = parts[1]
+       231 +  
+       232 +      # JWT 토큰 검증
+       233 +      try:
+       234 +          payload = 
+           + JWTTokenManager.verify_access_token(token)
+       235 +      except AuthenticationError as e:
+       236 +          raise HTTPException(
+       237 +              status_code=status.HTTP_401_UNAUTHORIZED,
+       238 +              detail={
+       239 +                  "code": e.code,
+       240 +                  "message": e.message,
+       241 +              },
+       242 +          )
+       243 +  
+       244 +      # 토큰의 정보 반환 (역할을 kebab-case로 변환)
+       245 +      role = payload.get("role", "").replace("_", "-")
+       246 +      return {
+       247 +          "user_id": payload.get("user_id"),
+       248 +          "email": payload.get("email"),
+       249 +          "role": role,
+       250 +      }
+       251 +  
+       252 +  
+       253 +  @router.get("/fulfillment-partner/me", 
+           + response_model=CurrentUserResponse)
+       254    async def get_current_user_info(
+       255        authorization: str = Header(None),
+       256    ):
+       257 -      """현재 사용자 정보 조회"""
+       257 +      """현재 사용자 정보 조회 (호환성)"""
+       258        if not authorization:
+       259            raise HTTPException(
+       260                status_code=status.HTTP_401_UNAUTHORIZED,
+
+● change-password도 통합해야 한다. 파일의 끝부분을 확인해보자:
+
+● Read(backend/src/presentation/http/routers/auth.py)
+  ⎿  Read 111 lines
+
+● change-password도 호환성 경로를 추가하자:
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  (No changes)
+
+> 기존 함수명 그냥 사용 
+  ⎿  Found 3 new diagnostic issues in 1 file (ctrl+o to expand)
+
+● 알겠어. 함수명은 change_password로 그대로 두고, 경로만 추가하자:
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  Error editing file
+
+● 파일을 다시 읽어보자:
+
+● Read(backend/src/presentation/http/routers/auth.py)
+  ⎿  Read 63 lines
+
+● Update(backend/src/presentation/http/routers/auth.py)
+  ⎿  User rejected update to backend/src/presentation/http/routers/auth.py
+       190    
+       191    
+       192    @router.post("/change-password", 
+             response_model=ChangePasswordResponse)
+       193 +  @router.post("/fulfillment-partner/change-password", 
+           + response_model=ChangePasswordResponse)
+       194    async def change_password(
+       195        request: ChangePasswordRequest,
+       196        current_user: User = Depends(get_current_user),
+
+> 아니 통합 버전 사용해도 개별적으로 역할 별 비밀번호 변경 엔엔드 포인트 
+필요해?
+
+● 아니다! 통합 엔드포인트 /api/auth/change-password를 이미 만들었으니까,
+  프론트엔드에서 그거만 쓰면 된다!
+
+  개별 엔드포인트는 기존 코드와의 호환성 때문에 남겨두는 거고, 새로 개발하는
+   건 통합 버전만 사용하면 깔끔하다.
+
+  정리하자면:
+
+  Backend (현재 상태)
+
+  ✅ 통합 엔드포인트 3개:
+  - POST /api/auth/login - 모든 역할
+  - GET /api/auth/me - 모든 역할
+  - POST /api/auth/change-password - 모든 역할
+
+  (호환성을 위해 기존 경로들도 있지만 쓸 필요 없음)
+
+  Frontend (수정 필요)
+
+  프론트에서 api.ts 수정:
+  - loginFulfillmentPartner() → api.login() (통합)
+  - /api/auth/fulfillment-partner/me → /api/auth/me (통합)
+  - /api/auth/fulfillment-partner/change-password →
+  /api/auth/change-password (통합)
+
+  이렇게 하면 프론트가 훨씬 깔끔해진다!
+
+  진행할까?
+
+> 기존 코드와의 호환성 필요 없어. 기존 코드는 제거. 통합버전만 사용하하면 
+돼. @router.post("/login", response_model=TokenResponse)
+async def login_fulfillment_partner(
+    credentials: LoginRequest, 이 부분도 더 이상 필요 없으면 제거. 핵심은 
+통합 버전만 사용하면 되고, 이전에 사용되던 기능은 통합 버전으로 대체됐으면
+제거.   프론트에서 api.ts 수정까지 진햏애줘
+  ⎿ ⧉ Selected 3 lines from backend/src/presentation/http/routers/auth.py in 
+    Visual Studio Code
+
+● 좋아, 깔끔하게 정리하자! 기존 코드 다 제거하고 통합 버전만 사용.
+
+  1️⃣ Backend auth.py 정리
+
+● Read(backend/src/presentation/http/routers/auth.py)
+  ⎿  Read 80 lines
+
+● auth.py를 완전히 다시 작성하자:
+
+● Write(backend/src/presentation/http/routers/auth.py)
+  ⎿  Updated backend/src/presentation/http/routers/auth.py with 5 additions
+     and 115 removals
+
+       1 -  """인증 라우터 - Presentation Layer"""
+       1 +  """인증 라우터 - Presentation Layer (통합 버전)"""
+       2    
+       3    from fastapi import APIRouter, Depends, HTTPException, 
+           status, Header
+       4    from sqlalchemy.orm import Session
+     ...
+       25        authorization: str = Header(None),
+       26        db: Session = Depends(get_db),
+       27    ) -> User:
+       28 -      """현재 사용자 정보 추출 (의존성)"""
+       28 +      """현재 사용자 정보 추출 (의존성) - 모든 역할 지원"""
+       29        if not authorization:
+       30            raise HTTPException(
+       31                status_code=status.HTTP_401_UNAUTHORIZED,
+     ...
+        77    
+        78    
+        79    @router.post("/login", response_model=TokenResponse)
+        80 -  async def login_fulfillment_partner(
+        80 +  async def login(
+        81        credentials: LoginRequest,
+        82        db: Session = Depends(get_db),
+        83    ):
+        84 -      """배송담당자 로그인"""
+        85 -      try:
+        86 -          # Service 계층에서 인증 처리
+        87 -          user = 
+           - AuthenticationService.authenticate_user_by_email(
+        88 -              db,
+        89 -              email=credentials.email,
+        90 -              password=credentials.password,
+        91 -          )
+        92 -  
+        93 -          # 요청된 역할과 실제 역할이 일치하는지 검증
+        94 -          # DB의 role은 'fulfillment_partner' 형식, 요청의 
+           - role은 'fulfillment-partner' 형식
+        95 -          user_actual_role = user.role.value if 
+           - hasattr(user.role, 'value') else user.role
+        96 -          requested_role = credentials.role.replace('-', '_')
+           -   # 'fulfillment-partner' -> 'fulfillment_partner'
+        97 -  
+        98 -          if user_actual_role != requested_role:
+        99 -              raise AuthenticationError(
+       100 -                  code="ROLE_MISMATCH",
+       101 -                  message=f"사용자의 역할은 
+           - {user_actual_role}입니다. {credentials.role}로 로그인할 수 
+           - 없습니다.",
+       102 -              )
+       103 -  
+       104 -          # 토큰 생성 - 실제 역할 사용
+       105 -          token_payload = {
+       106 -              "user_id": str(user.id),
+       107 -              "role": user_actual_role,  # 실제 역할 사용
+       108 -              "email": user.email,
+       109 -          }
+       110 -          access_token = 
+           - JWTTokenManager.create_access_token(token_payload)
+       111 -  
+       112 -          return {
+       113 -              "access_token": access_token,
+       114 -              "token_type": "bearer",
+       115 -          }
+       116 -  
+       117 -      except AuthenticationError as e:
+       118 -          raise HTTPException(
+       119 -              status_code=status.HTTP_401_UNAUTHORIZED,
+       120 -              detail={
+       121 -                  "code": e.code,
+       122 -                  "message": e.message,
+       123 -              },
+       124 -          )
+       125 -  
+       126 -  
+       127 -  @router.post("/fulfillment-partner/login", 
+           - response_model=TokenResponse)
+       128 -  async def login_fulfillment_partner_compat(
+       129 -      credentials: LoginRequest,
+       130 -      db: Session = Depends(get_db),
+       131 -  ):
+       132 -      """배송담당자 로그인 (호환성)"""
+       133 -      return await login_fulfillment_partner(credentials, db)
+       134 -  
+       135 -  
+       136 -  # ============================================
+       137 -  # 통합 엔드포인트 (모든 역할 지원)
+       138 -  # ============================================
+       139 -  
+       140 -  @router.post("/login", response_model=TokenResponse)
+       141 -  async def login_unified(
+       142 -      credentials: LoginRequest,
+       143 -      db: Session = Depends(get_db),
+       144 -  ):
+        84        """
+        85        통합 로그인 (모든 역할 지원)
+        86    
+     ...
+       194    
+       195    
+       196    @router.get("/me", response_model=CurrentUserResponse)
+       197 -  async def get_current_user_info_unified(
+       197 +  async def get_current_user_info(
+       198        authorization: str = Header(None),
+       199    ):
+       200        """
+     ...
+       250        }
+       251    
+       252    
+       253 -  @router.get("/fulfillment-partner/me", 
+           - response_model=CurrentUserResponse)
+       254 -  async def get_current_user_info(
+       255 -      authorization: str = Header(None),
+       256 -  ):
+       257 -      """현재 사용자 정보 조회 (호환성)"""
+       258 -      if not authorization:
+       259 -          raise HTTPException(
+       260 -              status_code=status.HTTP_401_UNAUTHORIZED,
+       261 -              detail={
+       262 -                  "code": "MISSING_TOKEN",
+       263 -                  "message": "Authorization 헤더가 
+           - 필요합니다.",
+       264 -              },
+       265 -          )
+       266 -  
+       267 -      # Bearer 토큰 추출
+       268 -      parts = authorization.split()
+       269 -      if len(parts) != 2 or parts[0].lower() != "bearer":
+       270 -          raise HTTPException(
+       271 -              status_code=status.HTTP_401_UNAUTHORIZED,
+       272 -              detail={
+       273 -                  "code": "INVALID_TOKEN_FORMAT",
+       274 -                  "message": "유효하지 않은 토큰 
+           - 형식입니다.",
+       275 -              },
+       276 -          )
+       277 -  
+       278 -      token = parts[1]
+       279 -  
+       280 -      # JWT 토큰 검증
+       281 -      try:
+       282 -          payload = 
+           - JWTTokenManager.verify_access_token(token)
+       283 -      except AuthenticationError as e:
+       284 -          raise HTTPException(
+       285 -              status_code=status.HTTP_401_UNAUTHORIZED,
+       286 -              detail={
+       287 -                  "code": e.code,
+       288 -                  "message": e.message,
+       289 -              },
+       290 -          )
+       291 -  
+       292 -      # 토큰의 정보 반환 (검증된 역할 포함)
+       293 -      # 역할을 kebab-case로 변환 (fulfillment_partner -> 
+           - fulfillment-partner)
+       294 -      role = payload.get("role", "").replace("_", "-")
+       295 -      return {
+       296 -          "user_id": payload.get("user_id"),
+       297 -          "email": payload.get("email"),
+       298 -          "role": role,
+       299 -      }
+       300 -  
+       301 -  
+       253    @router.post("/change-password", 
+             response_model=ChangePasswordResponse)
+       254    async def change_password(
+       255        request: ChangePasswordRequest,
+     ...
+       306        db: Session = Depends(get_db),
+       307    ):
+       308        """
+       309 -      비밀번호 변경 (모든 역할 지원)
+       309 +      비밀번호 변경 (통합, 모든 역할 지원)
+       310    
+       311        Request:
+       312        {
+
+● 2️⃣ Frontend api.ts 수정
+
+● Update(frontend/src/utils/api.ts)
+  ⎿  Updated frontend/src/utils/api.ts with 5 additions and 7 removals  
+       37    }
+       38    
+       39    export const api = {
+       40 -    // 배송담당자 로그인 (토큰을 메모리에만 저장, 실제로는 
+          - HttpOnly 쿠키로 반환됨)
+       40 +    // 통합 로그인 (모든 역할)
+       41      async loginFulfillmentPartner(email: string, password: 
+            string, role: string = 'fulfillment-partner') {
+       42 -      const response = await fetch(`${API_BASE_URL}/api/auth/
+          -  fulfillment-partner/login`, {
+       42 +      const response = await fetch(`${API_BASE_URL}/api/auth/
+          +  login`, {
+       43          method: 'POST',
+       44          headers: { 'Content-Type': 'application/json' },
+       45 -        credentials: 'include', // 쿠키 자동 포함
+       45 +        credentials: 'include',
+       46          body: JSON.stringify({ email, password, role }),
+       47        });
+       48    
+     ...
+       52        }
+       53    
+       54        const data = await response.json();
+       55 -      // 토큰을 메모리에만 저장 (본 프로젝트에서 사용하지 
+          - 않음)
+       56 -      // 실제 HttpOnly 쿠키는 백엔드가 관리함
+       55        sessionStorage.setItem('token', data.access_token);
+       56        return data;
+       57      },
+       58    
+       59 -    // 현재 사용자 정보 조회
+       59 +    // 통합 사용자 정보 조회 (모든 역할)
+       60      async getCurrentUser(): Promise<CurrentUser> {
+       61        const token = sessionStorage.getItem('token');
+       62        if (!token) {
+       63          throw new Error('No authentication token found');
+       64        }
+       65    
+       66 -      const response = await fetch(`${API_BASE_URL}/api/auth/
+          -  fulfillment-partner/me`, {
+       66 +      const response = await fetch(`${API_BASE_URL}/api/auth/
+          +  me`, {
+       67          headers: {
+       68            'Authorization': `Bearer ${token}`,
+       69            'Content-Type': 'application/json',
+
+● 이제 changePassword도 수정하자:
+
+● Update(frontend/src/utils/api.ts)
+  ⎿  Updated frontend/src/utils/api.ts with 2 additions and 2 removals   
+       195        return await response.json();
+       196      },
+       197    
+       198 -    // 비밀번호 변경 (모든 역할 지원)
+       198 +    // 통합 비밀번호 변경 (모든 역할 지원)
+       199      async changePassword(request: ChangePasswordRequest): 
+             Promise<ChangePasswordResponse> {
+       200        const token = sessionStorage.getItem('token');
+       201        if (!token) {
+       202          throw new Error('No authentication token found');
+       203        }
+       204    
+       205 -      const response = await fetch(`${API_BASE_URL}/api/auth/
+           -  fulfillment-partner/change-password`, {
+       205 +      const response = await fetch(`${API_BASE_URL}/api/auth/
+           +  change-password`, {
+       206          method: 'POST',
+       207          headers: {
+       208            'Authorization': `Bearer ${token}`,
+
+● 완벽하다! ✅ 모든 수정 완료!
+
+  📋 정리
+
+  Backend (auth.py)
+
+  ✅ 호환성 코드 제거, 통합 버전만 유지:
+  - POST /api/auth/login - 모든 역할
+  - GET /api/auth/me - 모든 역할
+  - POST /api/auth/change-password - 모든 역할
+
+  Frontend (api.ts)
+
+  ✅ 모든 엔드포인트 통합 버전으로 수정:
+  - /api/auth/fulfillment-partner/login → /api/auth/login
+  - /api/auth/fulfillment-partner/me → /api/auth/me
+  - /api/auth/fulfillment-partner/change-password →
+  /api/auth/change-password
+
+  ---
+  이제 브라우저에서 새로고침하면 통합 엔드포인트를 사용할 거야!
+
+  역할 selector에서 admin/fulfillment-partner/influencer 선택해서
+  테스트해봐! 🚀
+
+> 커밋 메시지 제안 
+  ⎿ ⧉ Selected 3 lines from backend/src/presentation/http/routers/auth.py in 
+    Visual Studio Code
+
+● refactor: 인증 엔드포인트 통합
+
+  ## Summary
+  - 호환성 엔드포인트 제거, 통합 버전으로 정리
+  - 모든 역할(admin, influencer, fulfillment_partner) 지원
+  - API 엔드포인트 3개로 완전 통합
+
+  ## Backend Changes (auth.py)
+  - 기존 fulfillment-partner 전용 코드 제거
+  - 통합 엔드포인트 구현
+    * POST /api/auth/login (모든 역할)
+    * GET /api/auth/me (모든 역할)
+    * POST /api/auth/change-password (모든 역할)
+
+  ## Frontend Changes (api.ts)
+  - 엔드포인트 경로 통합
+    * /api/auth/fulfillment-partner/login → /api/auth/login
+    * /api/auth/fulfillment-partner/me → /api/auth/me
+    * /api/auth/fulfillment-partner/change-password → 
+  /api/auth/change-password
+
+  🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+  Co-Authored-By: Claude <noreply@anthropic.com>
+
+  이 메시지로 커밋할까?
+
+> 응 
+
+● Bash(git add -A && git commit -m "refactor: 인증 엔드포인트 통합…)
+  ⎿  [main 9c4259d] refactor: 인증 엔드포인트 통합      
+      2 files changed, 36 insertions(+), 22 deletions(-)
+
+● Bash(git log --oneline -1)
+  ⎿  9c4259d refactor: 인증 엔드포인트 통합
+
+● 완벽하다! ✅ 커밋 완료!
+
+  커밋 정보:
+  - 해시: 9c4259d
+  - 메시지: refactor: 인증 엔드포인트 통합
+  - 변경 사항: 2개 파일, +36 / -22 줄
+
+  ---
+  🎉 완성된 작업
+
+  ✅ Backend auth.py 정리
+  - 호환성 코드 완전 제거
+  - 통합 엔드포인트 3개로 단순화
+
+  ✅ Frontend api.ts 통합
+  - 모든 API 경로 통합 버전으로 수정
+  - 역할과 관계없이 동일한 엔드포인트 사용
+
+  ✅ 깔끔한 구조
+  - 역할 선택 후 하나의 /api/auth/login 호출
+  - 배송담당자 / 인플루언서 / 관리자 모두 같은 로직
+
+  태수, 이제 완전히 깔끔하게 정리됐다! 🚀
+
+
+

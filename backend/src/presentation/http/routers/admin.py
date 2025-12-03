@@ -2,11 +2,15 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+import logging
 
 from uuid import UUID
 
+logger = logging.getLogger(__name__)
+
 from ....persistence.database import get_db
-from ....persistence.models import User, Shipment, Order, Customer
+from ....persistence.models import User, Shipment, Order, Customer, Affiliate, FulfillmentPartner, AffiliateSale, AffiliatePayment, ShipmentAllocation, ShippingCommissionPayment
 from ....persistence.repositories.inventory_repository import InventoryRepository
 from ....persistence.repositories.order_repository import OrderRepository
 from ....workflow.services.admin_service import AdminService
@@ -29,6 +33,13 @@ from ...schemas.admin import (
     RefundListResponse,
     ProcessRefundRequest,
     ProcessRefundResponse,
+    AdminDashboardResponse,
+    DashboardSummary,
+    InfluencerCommissionItem,
+    InfluencerCommissionData,
+    FulfillmentCommissionItem,
+    FulfillmentCommissionData,
+    RefundRequestItem,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -546,5 +557,189 @@ async def process_refund(
             detail={
                 "code": "REFUND_PROCESS_FAILED",
                 "message": f"환불 처리에 실패했습니다: {str(e)}",
+            },
+        )
+
+
+# ============================================
+# 관리자 대시보드
+# ============================================
+@router.get("/dashboard", response_model=AdminDashboardResponse)
+async def get_admin_dashboard(
+    current_admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    관리자 대시보드 데이터 조회
+
+    Returns:
+        {
+            "summary": {
+                "total_orders": 1250,
+                "total_profit": 125000000
+            },
+            "influencer_commissions": {
+                "pending": [...],
+                "pending_total": 45000000,
+                "completed_total": 180000000
+            },
+            "fulfillment_commissions": {
+                "pending": [...],
+                "pending_total": 32000000,
+                "completed_total": 120000000
+            },
+            "refund_requests": [...]
+        }
+    """
+    try:
+        # 1. 요약 정보 조회
+        logger.info("Fetching dashboard summary...")
+        total_orders = db.query(Order).filter(
+            Order.payment_status == "completed"
+        ).count()
+
+        total_profit = db.query(Order).filter(
+            Order.payment_status == "completed"
+        ).with_entities(func.sum(Order.total_profit)).scalar() or 0
+
+        summary = DashboardSummary(
+            total_orders=total_orders,
+            total_profit=float(total_profit),
+        )
+        logger.info(f"✅ Summary: {total_orders} orders, profit: {total_profit}")
+
+        # 2. 인플루언서 커미션 조회
+        logger.info("Fetching influencer commissions...")
+        influencers = db.query(Affiliate).filter(
+            Affiliate.is_active == True
+        ).all()
+        logger.info(f"✅ Found {len(influencers)} influencers")
+
+        influencer_commission_items = []
+        influencer_pending_total = 0
+        influencer_completed_total = 0
+
+        for influencer in influencers:
+            # 모든 판매 커미션 합산
+            total_marketing_commission = db.query(AffiliateSale).filter(
+                AffiliateSale.affiliate_id == influencer.id
+            ).with_entities(func.sum(AffiliateSale.marketing_commission)).scalar() or 0
+
+            # 완료된 지급액 합산
+            total_completed_payment = db.query(AffiliatePayment).filter(
+                AffiliatePayment.affiliate_id == influencer.id,
+                AffiliatePayment.status == "completed",
+            ).with_entities(func.sum(AffiliatePayment.amount)).scalar() or 0
+
+            # 지급 예정 = 판매 커미션 - 완료된 지급
+            pending_amount = total_marketing_commission - total_completed_payment
+
+            influencer_commission_items.append(
+                InfluencerCommissionItem(
+                    influencer_id=influencer.id,
+                    influencer_name=influencer.name or influencer.code,
+                    pending_amount=float(pending_amount),
+                    completed_amount=float(total_completed_payment),
+                )
+            )
+
+            influencer_pending_total += pending_amount
+            influencer_completed_total += total_completed_payment
+
+        influencer_commissions = InfluencerCommissionData(
+            pending=influencer_commission_items,
+            pending_total=float(influencer_pending_total),
+            completed_total=float(influencer_completed_total),
+        )
+
+        # 3. 배송담당자 커미션 조회
+        logger.info("Fetching fulfillment partner commissions...")
+        partners = db.query(FulfillmentPartner).filter(
+            FulfillmentPartner.is_active == True
+        ).all()
+        logger.info(f"✅ Found {len(partners)} fulfillment partners")
+
+        fulfillment_commission_items = []
+        fulfillment_pending_total = 0
+        fulfillment_completed_total = 0
+
+        for partner in partners:
+            # 모든 배송 커미션 합산 (ShipmentAllocation에서)
+            total_shipping_commission = db.query(ShipmentAllocation).filter(
+                ShipmentAllocation.partner_id == partner.id
+            ).with_entities(func.sum(ShipmentAllocation.shipping_commission)).scalar() or 0
+
+            # 완료된 지급액 합산
+            total_completed_payment = db.query(ShippingCommissionPayment).filter(
+                ShippingCommissionPayment.fulfillment_partner_id == partner.id,
+                ShippingCommissionPayment.status == "completed",
+            ).with_entities(func.sum(ShippingCommissionPayment.amount)).scalar() or 0
+
+            # 지급 예정 = 배송 커미션 - 완료된 지급
+            pending_amount = total_shipping_commission - total_completed_payment
+
+            fulfillment_commission_items.append(
+                FulfillmentCommissionItem(
+                    partner_id=partner.id,
+                    partner_name=partner.name,
+                    pending_amount=float(pending_amount),
+                    completed_amount=float(total_completed_payment),
+                )
+            )
+
+            fulfillment_pending_total += pending_amount
+            fulfillment_completed_total += total_completed_payment
+
+        fulfillment_commissions = FulfillmentCommissionData(
+            pending=fulfillment_commission_items,
+            pending_total=float(fulfillment_pending_total),
+            completed_total=float(fulfillment_completed_total),
+        )
+
+        # 4. 환불 요청 조회 (상태: "refund_requested"만)
+        logger.info("Fetching refund requests...")
+        refund_orders = db.query(Order).filter(
+            Order.refund_status == "refund_requested"
+        ).all()
+        logger.info(f"✅ Found {len(refund_orders)} refund requests")
+
+        refund_requests = []
+        for order in refund_orders:
+            # refund_requested_at이 None인 경우 체크
+            if not order.refund_requested_at:
+                logger.warning(f"Order {order.order_number} has refund_requested but no refund_requested_at date")
+                continue
+
+            customer = db.query(Customer).filter(
+                Customer.id == order.customer_id
+            ).first()
+
+            refund_requests.append(
+                RefundRequestItem(
+                    refund_id=f"REF-{order.order_number}",
+                    order_id=order.id,
+                    order_number=order.order_number,
+                    customer_name=customer.name if customer else "Unknown",
+                    refund_amount=float(order.total_price),
+                    refund_reason=order.refund_reason or "",
+                    requested_at=order.refund_requested_at,
+                )
+            )
+
+        logger.info("✅ All dashboard data fetched successfully!")
+        return AdminDashboardResponse(
+            summary=summary,
+            influencer_commissions=influencer_commissions,
+            fulfillment_commissions=fulfillment_commissions,
+            refund_requests=refund_requests,
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Dashboard fetch error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "DASHBOARD_FETCH_FAILED",
+                "message": f"대시보드 데이터 조회에 실패했습니다: {str(e)}",
             },
         )

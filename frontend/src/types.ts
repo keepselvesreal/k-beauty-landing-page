@@ -103,3 +103,54 @@ export interface ShipmentResponse {
   shipped_at: string;
   email_status: string;
 }
+
+// ============================================
+// 관리자 대시보드
+// ============================================
+export interface DashboardSummary {
+  total_orders: number;
+  total_profit: number;
+}
+
+export interface InfluencerCommissionItem {
+  influencer_id: string;
+  influencer_name: string;
+  pending_amount: number;
+  completed_amount: number;
+}
+
+export interface InfluencerCommissionData {
+  pending: InfluencerCommissionItem[];
+  pending_total: number;
+  completed_total: number;
+}
+
+export interface FulfillmentCommissionItem {
+  partner_id: string;
+  partner_name: string;
+  pending_amount: number;
+  completed_amount: number;
+}
+
+export interface FulfillmentCommissionData {
+  pending: FulfillmentCommissionItem[];
+  pending_total: number;
+  completed_total: number;
+}
+
+export interface RefundRequestItem {
+  refund_id: string;
+  order_id: string;
+  order_number: string;
+  customer_name: string;
+  refund_amount: number;
+  refund_reason: string;
+  requested_at: string;
+}
+
+export interface AdminDashboardResponse {
+  summary: DashboardSummary;
+  influencer_commissions: InfluencerCommissionData;
+  fulfillment_commissions: FulfillmentCommissionData;
+  refund_requests: RefundRequestItem[];
+}
