@@ -10,43 +10,57 @@ from src.persistence.models import Affiliate, Order, Settings, AffiliatePayment
 from src.workflow.services.affiliate_service import AffiliateService
 
 
-class TestRecordCommissionIfApplicable:
-    """Commission 기록"""
+class TestRecordMarketingCommissionIfApplicable:
+    """마케팅 커미션 기록"""
 
-    def test_record_commission_success_with_valid_affiliate(
+    def test_record_marketing_commission_success_with_valid_affiliate(
         self,
         test_db: Session,
         affiliate_active: Affiliate,
         order_with_customer: Order,
+        sample_product,
     ):
-        """TC-2.1.1: Affiliate code가 있는 주문의 commission 자동 기록"""
+        """TC-2.1.1: Affiliate code가 있는 주문의 마케팅 커미션 자동 기록"""
         # Given
         test_db.add(affiliate_active)
         test_db.commit()
 
-        # Order에 affiliate_id 설정
-        order_with_customer.affiliate_id = affiliate_active.id
+        # Order에 marketing_affiliate_id 설정
+        order_with_customer.marketing_affiliate_id = affiliate_active.id
         order_with_customer.payment_status = "paid"
+        order_with_customer.total_profit = Decimal("160.00")  # 80 * 2 (수량 2)
         test_db.add(order_with_customer)
+        test_db.commit()
+
+        # OrderItem 추가
+        from src.persistence.models import OrderItem
+        order_item = OrderItem(
+            order_id=order_with_customer.id,
+            product_id=sample_product.id,
+            quantity=2,
+            unit_price=sample_product.price,
+            profit_per_item=Decimal("80.00"),
+        )
+        test_db.add(order_item)
         test_db.commit()
 
         # Settings 생성
         settings = Settings(
-            profit_per_order=Decimal("80.00"),
-            affiliate_commission_rate=Decimal("0.2"),
+            profit_per_unit=Decimal("80.00"),
+            marketing_commission_rate=Decimal("0.2"),
         )
         test_db.add(settings)
         test_db.commit()
 
         # When
-        AffiliateService.record_commission_if_applicable(test_db, order_with_customer)
+        AffiliateService.record_marketing_commission_if_applicable(test_db, order_with_customer)
 
         # Then
         # affiliate_sales 확인
         assert order_with_customer.affiliate_sales
         affiliate_sale = order_with_customer.affiliate_sales[0]
         assert affiliate_sale.affiliate_id == affiliate_active.id
-        assert affiliate_sale.commission_amount == Decimal("16.00")
+        assert affiliate_sale.marketing_commission == Decimal("32.00")  # 80 * 0.2 * 2
 
     def test_no_commission_without_affiliate(
         self,

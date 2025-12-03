@@ -1,6 +1,7 @@
 """배송담당자 할당 관련 비즈니스 로직"""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
@@ -173,12 +174,22 @@ class FulfillmentService:
             raise
 
         # 7. ShipmentAllocation 생성 (각 OrderItem마다)
+        # Settings에서 배송 커미션율 조회
+        from src.persistence.models import Settings
+        settings = db.query(Settings).first()
+        shipping_commission_rate = Decimal(str(settings.shipping_commission_rate or 0.2)) if settings else Decimal('0.2')
+
         for order_item in order_items:
+            # 배송 커미션 계산: profit_per_item * shipping_commission_rate * quantity
+            profit_per_item = Decimal(str(order_item.profit_per_item or 80))
+            shipping_commission = profit_per_item * shipping_commission_rate * order_item.quantity
+
             allocation = ShipmentAllocation(
                 order_id=order.id,
                 order_item_id=order_item.id,
                 partner_id=selected_partner.id,
                 quantity=order_item.quantity,
+                shipping_commission=shipping_commission,
             )
             db.add(allocation)
 

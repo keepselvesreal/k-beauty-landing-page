@@ -41,13 +41,13 @@ class AffiliateRepository:
         db: Session,
         affiliate_id: UUID,
         order_id: UUID,
-        commission_amount: Decimal,
+        marketing_commission: Decimal,
     ) -> AffiliateSale:
-        """Affiliate Sale 생성"""
+        """Affiliate Sale 생성 (마케팅 커미션 기록)"""
         affiliate_sale = AffiliateSale(
             affiliate_id=affiliate_id,
             order_id=order_id,
-            commission_amount=commission_amount,
+            marketing_commission=marketing_commission,
         )
         db.add(affiliate_sale)
         db.commit()

@@ -1,11 +1,12 @@
 """배송 처리 비즈니스 로직"""
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from src.persistence.models import Order, Shipment
+from src.persistence.models import Order, Shipment, ShipmentAllocation
 from src.utils.exceptions import OrderException, AuthenticationError
 
 
@@ -125,6 +126,7 @@ class ShipmentService:
         3. Shipment 상태 업데이트 (shipped → delivered)
         4. delivered_at 타임스탬프 기록
         5. Order 상태 업데이트 (shipped → completed)
+        6. ShipmentAllocation에서 shipping_commission 합산하여 Order에 저장
 
         Args:
             db: 데이터베이스 세션
@@ -167,10 +169,23 @@ class ShipmentService:
         shipment.delivered_at = delivered_at
         db.add(shipment)
 
-        # 4. Order 상태 업데이트
+        # 4. Order 상태 업데이트 및 배송 커미션 합산
         order = db.query(Order).filter(Order.id == shipment.order_id).first()
         if order:
             order.shipping_status = "completed"
+
+            # 5. 해당 주문의 ShipmentAllocation에서 shipping_commission 합산
+            shipment_allocations = db.query(ShipmentAllocation).filter(
+                ShipmentAllocation.order_id == order.id
+            ).all()
+
+            total_shipping_commission = Decimal('0')
+            for allocation in shipment_allocations:
+                if allocation.shipping_commission:
+                    total_shipping_commission += allocation.shipping_commission
+
+            # Order에 총 배송 커미션 저장
+            order.shipping_commission = total_shipping_commission
             db.add(order)
 
         db.commit()

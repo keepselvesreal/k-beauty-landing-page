@@ -96,6 +96,7 @@ class Product(Base):
     price = Column(Numeric(10, 2), nullable=False)
     sku = Column(String(100), unique=True)
     image_url = Column(String(500))
+    profit_per_unit = Column(Numeric(10, 2), default=80.0)  # 상품 1개당 순이윤
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -167,8 +168,8 @@ class Order(Base):
     payment_status = Column(String(50), default="pending", nullable=False, index=True)
     paypal_order_id = Column(String(255))
     paypal_capture_id = Column(String(255))
-    paypal_fee = Column(Numeric(10, 2))
-    profit = Column(Numeric(10, 2), default=80.0)
+    paypal_transaction_fee = Column(Numeric(10, 2))
+    total_profit = Column(Numeric(10, 2))  # 수량 기반 총 순이윤
     paid_at = Column(DateTime)
 
     # 배송 정보
@@ -179,15 +180,20 @@ class Order(Base):
     cancellation_status = Column(String(50), nullable=True)  # null, "cancel_requested", "cancelled"
     cancellation_reason = Column(Text, nullable=True)
     cancellation_requested_at = Column(DateTime, nullable=True)
+    cancellation_approved_at = Column(DateTime, nullable=True)
 
     # 환불 요청
     refund_status = Column(String(50), nullable=True)  # null, "refund_requested", "refunded"
     refund_reason = Column(Text, nullable=True)
     refund_requested_at = Column(DateTime, nullable=True)
+    refund_approved_at = Column(DateTime, nullable=True)
 
-    # 어필리에이트
-    affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), index=True)
-    affiliate_commission = Column(Numeric(10, 2))
+    # 마케팅 (인플루언서)
+    marketing_affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), index=True)
+    marketing_commission = Column(Numeric(10, 2))  # 마케팅 커미션
+
+    # 배송 커미션
+    shipping_commission = Column(Numeric(10, 2))  # 배송 커미션
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -195,7 +201,7 @@ class Order(Base):
     # 관계
     customer = relationship("Customer", back_populates="orders")
     fulfillment_partner = relationship("FulfillmentPartner", back_populates="orders")
-    affiliate = relationship("Affiliate")
+    marketing_affiliate = relationship("Affiliate")
     order_items = relationship("OrderItem", back_populates="order")
     shipment_allocations = relationship("ShipmentAllocation", back_populates="order")
     shipments = relationship("Shipment", back_populates="order")
@@ -215,6 +221,9 @@ class OrderItem(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
+    profit_per_item = Column(Numeric(10, 2))  # 상품 1개당 순이윤
+    marketing_commission_unit = Column(Numeric(10, 2))  # 아이템당 마케팅 커미션
+    shipping_commission_unit = Column(Numeric(10, 2))  # 아이템당 배송 커미션
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 관계
@@ -234,6 +243,7 @@ class ShipmentAllocation(Base):
     order_item_id = Column(UUID(as_uuid=True), ForeignKey("order_items.id"), nullable=False)
     partner_id = Column(UUID(as_uuid=True), ForeignKey("fulfillment_partners.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
+    shipping_commission = Column(Numeric(10, 2))  # 배송 커미션
     allocated_at = Column(DateTime, default=datetime.utcnow)
 
     # 관계
@@ -293,7 +303,7 @@ class AffiliateSale(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     affiliate_id = Column(UUID(as_uuid=True), ForeignKey("affiliates.id"), nullable=False, index=True)
     order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False)
-    commission_amount = Column(Numeric(10, 2))
+    marketing_commission = Column(Numeric(10, 2))  # 마케팅 커미션
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # 관계
@@ -396,7 +406,27 @@ class Settings(Base):
     __tablename__ = "settings"
 
     id = Column(Integer, primary_key=True)
-    profit_per_order = Column(Numeric(10, 2), default=80.0)
-    affiliate_commission_rate = Column(Numeric(5, 4), default=0.2)
-    paypal_fee_rate_avg = Column(Numeric(5, 4))
+    profit_per_unit = Column(Numeric(10, 2), default=80.0)  # 상품 1개당 순이윤
+    marketing_commission_rate = Column(Numeric(5, 4), default=0.2)  # 마케팅 커미션율
+    shipping_commission_rate = Column(Numeric(5, 4), default=0.2)  # 배송 커미션율
+    paypal_transaction_fee_rate = Column(Numeric(5, 4))  # PayPal 거래 수수료율
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ============================================
+# 18. Shipping Commission Payments (배송 커미션 지급 기록)
+# ============================================
+class ShippingCommissionPayment(Base):
+    __tablename__ = "shipping_commission_payments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    fulfillment_partner_id = Column(UUID(as_uuid=True), ForeignKey("fulfillment_partners.id"), nullable=False, index=True)
+    amount = Column(Numeric(10, 2), nullable=False)
+    status = Column(String(50), nullable=False, default="pending")  # pending, completed, failed
+    paid_at = Column(DateTime)
+    payment_method = Column(String(100))  # PayPal, 은행이체 등
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 관계
+    fulfillment_partner = relationship("FulfillmentPartner")

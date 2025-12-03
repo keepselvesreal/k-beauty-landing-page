@@ -74,11 +74,15 @@ class OrderService:
                 message=f"유효하지 않은 지역입니다: {region}",
             )
 
-        # 5. 가격 계산
+        # 5. 가격 및 수익 계산
         unit_price = Decimal(str(product.price))
         subtotal = unit_price * quantity
         shipping_fee = Decimal(str(shipping_rate.fee))
         total_price = subtotal + shipping_fee
+
+        # 5-1. 총 순이윤 계산 (상품 1개당 순이윤 * 수량)
+        profit_per_unit = Decimal(str(product.profit_per_unit or 80))
+        total_profit = profit_per_unit * quantity
 
         # 6. 주문 생성
         order_number = OrderService.generate_order_number()
@@ -89,6 +93,7 @@ class OrderService:
             subtotal=subtotal,
             shipping_fee=shipping_fee,
             total_price=total_price,
+            total_profit=total_profit,
             payment_status="pending",
         )
 
@@ -99,6 +104,7 @@ class OrderService:
             product_id=product_id,
             quantity=quantity,
             unit_price=unit_price,
+            profit_per_item=profit_per_unit,
         )
 
         return {

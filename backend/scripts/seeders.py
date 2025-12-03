@@ -71,6 +71,7 @@ class ProductSeeder(BaseSeeder):
                 price=Decimal(str(product_data["price"])),
                 sku=product_data["sku"],
                 image_url=product_data.get("image_url", ""),
+                profit_per_unit=Decimal(str(product_data.get("profit_per_unit", 80))),
                 is_active=product_data.get("is_active", True),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
@@ -389,8 +390,9 @@ class OrderSeeder(BaseSeeder):
             if not partner:
                 continue
 
-            # 총액 계산
+            # 총액 및 순이윤 계산
             subtotal = Decimal("0")
+            total_profit = Decimal("0")
             items = []
 
             for item_data in order_data["items"]:
@@ -398,7 +400,16 @@ class OrderSeeder(BaseSeeder):
                 if product:
                     quantity = item_data["quantity"]
                     subtotal += product.price * Decimal(str(quantity))
-                    items.append({"product": product, "quantity": quantity})
+
+                    # 순이윤 계산: profit_per_unit * quantity
+                    profit_per_unit = Decimal(str(product.profit_per_unit or 80))
+                    total_profit += profit_per_unit * quantity
+
+                    items.append({
+                        "product": product,
+                        "quantity": quantity,
+                        "profit_per_unit": profit_per_unit,
+                    })
 
             shipping_fee = order_data.get("shipping_fee", Decimal("0"))
             total_price = subtotal + shipping_fee
@@ -415,8 +426,8 @@ class OrderSeeder(BaseSeeder):
                 shipping_status="preparing",
                 paypal_order_id=f"PAYPAL-{uuid4().hex[:8].upper()}",
                 paypal_capture_id=f"CAPTURE-{uuid4().hex[:8].upper()}",
-                paypal_fee=subtotal * Decimal("0.034"),  # 3.4% 수수료
-                profit=Decimal("80.00"),
+                paypal_transaction_fee=subtotal * Decimal("0.034"),  # 3.4% 수수료
+                total_profit=total_profit,
                 paid_at=datetime.utcnow(),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
@@ -432,6 +443,7 @@ class OrderSeeder(BaseSeeder):
                     product_id=item_info["product"].id,
                     quantity=item_info["quantity"],
                     unit_price=item_info["product"].price,
+                    profit_per_item=item_info["profit_per_unit"],
                     created_at=datetime.utcnow(),
                 )
                 self.db.add(order_item)

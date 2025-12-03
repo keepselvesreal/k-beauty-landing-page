@@ -30,6 +30,7 @@ class OrderRepository:
         subtotal: Decimal,
         shipping_fee: Decimal,
         total_price: Decimal,
+        total_profit: Decimal = None,
         payment_status: str = "pending",
     ) -> Order:
         """주문 생성"""
@@ -39,6 +40,7 @@ class OrderRepository:
             subtotal=subtotal,
             shipping_fee=shipping_fee,
             total_price=total_price,
+            total_profit=total_profit,
             payment_status=payment_status,
         )
         db.add(order)
@@ -53,6 +55,7 @@ class OrderRepository:
         product_id: UUID,
         quantity: int,
         unit_price: Decimal,
+        profit_per_item: Decimal = None,
     ) -> OrderItem:
         """주문 상품 추가"""
         order_item = OrderItem(
@@ -60,6 +63,7 @@ class OrderRepository:
             product_id=product_id,
             quantity=quantity,
             unit_price=unit_price,
+            profit_per_item=profit_per_item,
         )
         db.add(order_item)
         db.commit()

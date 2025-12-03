@@ -13,21 +13,22 @@ class AffiliateService:
     """Affiliate Service"""
 
     @staticmethod
-    def calculate_commission(profit: Decimal, commission_rate: Decimal) -> Decimal:
-        """Commission 계산
+    def calculate_marketing_commission(profit_per_unit: Decimal, commission_rate: Decimal, quantity: int) -> Decimal:
+        """마케팅 커미션 계산
 
         Args:
-            profit: 주문 이윤
-            commission_rate: 수수료율 (0.2 = 20%)
+            profit_per_unit: 상품 1개당 순이윤
+            commission_rate: 마케팅 커미션율 (0.2 = 20%)
+            quantity: 주문 수량
 
         Returns:
-            계산된 Commission 금액
+            계산된 마케팅 커미션 금액
         """
-        return profit * commission_rate
+        return profit_per_unit * commission_rate * quantity
 
     @staticmethod
-    def record_commission_if_applicable(db: Session, order: Order) -> None:
-        """주문에 대한 Commission 기록 (Affiliate ID가 유효한 경우만)
+    def record_marketing_commission_if_applicable(db: Session, order: Order) -> None:
+        """주문에 대한 마케팅 커미션 기록 (인플루언서가 있는 경우만)
 
         Args:
             db: 데이터베이스 세션
@@ -36,27 +37,39 @@ class AffiliateService:
         Returns:
             None
         """
-        # 1. Affiliate ID가 없으면 기록하지 않음
-        if not order.affiliate_id:
+        # 1. 마케팅 인플루언서가 없으면 기록하지 않음
+        if not order.marketing_affiliate_id:
             return
 
-        # 2. Settings에서 Commission Rate 조회
+        # 2. Settings에서 마케팅 커미션율 조회
         settings = db.query(Settings).first()
         if not settings:
             return
 
-        # 3. Commission 계산
-        commission_amount = AffiliateService.calculate_commission(
-            order.profit,
-            settings.affiliate_commission_rate,
+        # 3. 주문의 OrderItem 조회하여 수량 계산
+        from src.persistence.models import OrderItem
+        order_items = db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
+        if not order_items:
+            return
+
+        total_quantity = sum(item.quantity for item in order_items)
+
+        # 4. 마케팅 커미션 계산
+        marketing_commission = AffiliateService.calculate_marketing_commission(
+            order_items[0].profit_per_item,  # profit_per_item 사용
+            settings.marketing_commission_rate,
+            total_quantity,
         )
 
-        # 4. Affiliate Sale 기록
+        # 5. Order에 마케팅 커미션 저장
+        order.marketing_commission = marketing_commission
+
+        # 6. Affiliate Sale 기록
         AffiliateRepository.create_affiliate_sale(
             db,
-            affiliate_id=order.affiliate_id,
+            affiliate_id=order.marketing_affiliate_id,
             order_id=order.id,
-            commission_amount=commission_amount,
+            marketing_commission=marketing_commission,
         )
 
     @staticmethod
