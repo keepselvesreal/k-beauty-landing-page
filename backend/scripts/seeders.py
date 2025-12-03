@@ -429,7 +429,7 @@ class OrderSeeder(BaseSeeder):
                     "shipping_status": "in_transit",
                     "shipping_commission": Decimal("20"),
                 },
-                # 배송 완료 (delivered) - 배송담당자 2 (Visayas)
+                # 배송 준비 중 (preparing) - 배송담당자 2 (Visayas)
                 {
                     "customer_index": 0,  # Maria Santos
                     "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
@@ -437,9 +437,10 @@ class OrderSeeder(BaseSeeder):
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 2},
                     ],
                     "shipping_fee": Decimal("120"),
-                    "shipping_status": "delivered",
+                    "shipping_status": "preparing",
                     "shipping_commission": Decimal("25"),
                 },
+                # 배송 중 (in_transit) - 배송담당자 2 (Visayas)
                 {
                     "customer_index": 1,  # Juan Dela Cruz
                     "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
@@ -447,9 +448,10 @@ class OrderSeeder(BaseSeeder):
                         {"product_sku": "JOSEONMINYEO-RICECREAM-50ML", "quantity": 3},
                     ],
                     "shipping_fee": Decimal("120"),
-                    "shipping_status": "delivered",
+                    "shipping_status": "in_transit",
                     "shipping_commission": Decimal("25"),
                 },
+                # 배송 완료 (delivered) - 배송담당자 2 (Visayas)
                 {
                     "customer_index": 2,  # Rosa Garcia
                     "partner_name": "조선미녀 필리핀 배송담당자 - Visayas",
@@ -708,6 +710,50 @@ class ShippingCommissionPaymentSeeder(BaseSeeder):
             "type": "shipping_commission_payments",
             "count": len(created_payments),
             "data": created_payments,
+        }
+
+
+class ShipmentSeeder(BaseSeeder):
+    """배송 정보 Seeder"""
+
+    def seed(self, orders_result: Dict = None) -> Dict[str, Any]:
+        """
+        배송 정보 생성 (in_transit 주문에만)
+
+        배송 준비 중(preparing) 상태의 주문은 배송 정보가 없어야 함
+        배송 중(in_transit) 상태의 주문에만 배송 정보(Shipment) 생성
+        """
+        if not orders_result or "data" not in orders_result:
+            raise ValueError("배송 정보 생성을 위해 먼저 Order를 생성해야 합니다.")
+
+        orders = orders_result["data"]
+        carriers = ["LBC", "2GO", "Grab Express", "Lalamove"]
+
+        created_shipments = []
+
+        for idx, order in enumerate(orders):
+            # in_transit 상태인 주문에만 Shipment 생성
+            if order.shipping_status == "in_transit":
+                shipment = Shipment(
+                    id=uuid4(),
+                    order_id=order.id,
+                    partner_id=order.fulfillment_partner_id,
+                    carrier=carriers[idx % len(carriers)],
+                    tracking_number=f"{carriers[idx % len(carriers)]}-{uuid4().hex[:8].upper()}",
+                    status="shipped",
+                    shipped_at=datetime.utcnow(),
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow(),
+                )
+                self.db.add(shipment)
+                created_shipments.append(shipment)
+
+        self.commit()
+
+        return {
+            "type": "shipments",
+            "count": len(created_shipments),
+            "data": created_shipments,
         }
 
 

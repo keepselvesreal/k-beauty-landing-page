@@ -3,12 +3,14 @@
 import argparse
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 # 프로젝트 루트 경로 추가
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.persistence.database import SessionLocal
 from src.persistence.models import Product, ShippingRate, User, FulfillmentPartner, Customer, Order
+from src.workflow.services.authentication_service import AuthenticationService
 from scripts.seeders import (
     ProductSeeder,
     UserSeeder,
@@ -19,6 +21,7 @@ from scripts.seeders import (
     OrderSeeder,
     AffiliateSeeder,
     ShippingCommissionPaymentSeeder,
+    ShipmentSeeder,
     RefundSeeder,
 )
 
@@ -129,6 +132,64 @@ def check_existing_data(db):
     return False
 
 
+def delete_all_data(db):
+    """모든 더미 데이터 삭제"""
+    from src.persistence.models import (
+        Order, OrderItem, Shipment, ShipmentAllocation,
+        Customer, Affiliate, AffiliateClick, AffiliateSale, AffiliatePayment,
+        PartnerAllocatedInventory, Product, ShippingRate,
+        FulfillmentPartner, User, ShippingCommissionPayment,
+        InventoryAdjustmentLog, EmailLog, AffiliateErrorLog, Inquiry
+    )
+
+    print("🗑️  기존 데이터 삭제 중...\n")
+
+    tables_to_clear = [
+        (AffiliateClick, "affiliate clicks"),
+        (AffiliateSale, "affiliate sales"),
+        (EmailLog, "email logs"),
+        (AffiliateErrorLog, "affiliate error logs"),
+        (AffiliatePayment, "affiliate payments"),
+        (Affiliate, "affiliates"),
+        (OrderItem, "order_items"),
+        (ShipmentAllocation, "shipment_allocations"),
+        (Shipment, "shipments"),
+        (Order, "orders"),
+        (InventoryAdjustmentLog, "inventory adjustment logs"),
+        (PartnerAllocatedInventory, "partner allocated inventory"),
+        (Customer, "customers"),
+        (ShippingCommissionPayment, "shipping commission payments"),
+        (FulfillmentPartner, "fulfillment partners"),
+        (Product, "products"),
+        (ShippingRate, "shipping rates"),
+        (Inquiry, "inquiries"),
+    ]
+
+    for model, name in tables_to_clear:
+        count = db.query(model).delete()
+        if count > 0:
+            print(f"✅ {name}: {count}개 삭제됨")
+
+    users_with_partners = db.query(User).filter(User.role == "fulfillment_partner").all()
+    for user in users_with_partners:
+        if user.fulfillment_partner:
+            db.delete(user.fulfillment_partner)
+        db.delete(user)
+    deleted_partner_users = len(users_with_partners)
+    if deleted_partner_users > 0:
+        print(f"✅ fulfillment partner users & partners: {deleted_partner_users}명 삭제됨")
+
+    influencer_users = db.query(User).filter(User.role == "influencer").all()
+    for user in influencer_users:
+        db.delete(user)
+    deleted_influencer_users = len(influencer_users)
+    if deleted_influencer_users > 0:
+        print(f"✅ influencer users: {deleted_influencer_users}명 삭제됨")
+
+    db.commit()
+    print("\n✅ 데이터 삭제 완료!\n")
+
+
 def seed_all(db):
     """모든 더미 데이터 생성 (조합 방식)"""
     results = {}
@@ -172,22 +233,47 @@ def seed_all(db):
     )
     print_result(results["orders"])
 
-    print_separator("8️⃣  인플루언서 테스트 계정 생성 중...")
+    print_separator("8️⃣  배송 정보 생성 중...")
+    shipment_seeder = ShipmentSeeder(db)
+    results["shipments"] = shipment_seeder.seed(results["orders"])
+    print_result(results["shipments"])
+
+    print_separator("9️⃣  인플루언서 테스트 계정 생성 중...")
     affiliate_seeder = AffiliateSeeder(db)
     results["influencers"] = affiliate_seeder.seed(orders_result=results["orders"])
     print_result(results["influencers"])
 
-    print_separator("9️⃣  배송담당자 커미션 지급 데이터 생성 중...")
+    print_separator("🔟  배송담당자 커미션 지급 데이터 생성 중...")
     commission_seeder = ShippingCommissionPaymentSeeder(db)
     results["shipping_commissions"] = commission_seeder.seed(
         results["partners"], results["orders"]
     )
     print_result(results["shipping_commissions"])
 
-    print_separator("🔟  환불 요청 데이터 생성 중...")
+    print_separator("1️⃣1️⃣  환불 요청 데이터 생성 중...")
     refund_seeder = RefundSeeder(db)
     results["refunds"] = refund_seeder.seed(results["orders"])
     print_result(results["refunds"])
+
+    print_separator("1️⃣2️⃣  관리자 계정 생성 중...")
+    # 관리자 계정 생성
+    admin_user = db.query(User).filter(User.email == "nadle@naver.com").first()
+    if admin_user:
+        db.delete(admin_user)
+        db.commit()
+
+    admin_user = User(
+        id=uuid4(),
+        email="nadle@naver.com",
+        password_hash=AuthenticationService.hash_password("0000"),
+        role="admin",
+        is_active=True,
+    )
+    db.add(admin_user)
+    db.commit()
+    print(f"✅ 관리자 계정 생성됨")
+    print(f"  - 이메일: nadle@naver.com")
+    print(f"  - 비밀번호: 0000\n")
 
     print_separator("✅ 모든 더미 데이터 생성 완료!")
 
@@ -256,6 +342,11 @@ def main():
         action="store_true",
         help="기존 데이터 확인",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="기존 데이터 삭제 후 강제로 생성",
+    )
 
     args = parser.parse_args()
 
@@ -270,9 +361,12 @@ def main():
             return
 
         if args.all:
-            if check_existing_data(db):
+            # --force 플래그가 있으면 기존 데이터 삭제 후 생성
+            if args.force:
+                delete_all_data(db)
+            elif check_existing_data(db):
                 print("\n⚠️  기존 데이터가 있어 중단했습니다.")
-                print("   데이터베이스를 초기화 후 다시 시도해주세요.")
+                print("   --force 플래그를 사용하거나 데이터베이스를 초기화 후 다시 시도해주세요.")
                 return
 
             seed_all(db)
