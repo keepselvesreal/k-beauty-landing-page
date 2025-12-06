@@ -12,8 +12,8 @@ from src.presentation.schemas.inquiry import (
     InquiryListResponse,
     InquiryStatusUpdateRequest,
 )
-from src.utils.auth import JWTTokenManager
-from src.utils.exceptions import AuthenticationError
+from src.infrastructure.auth import JWTTokenManager
+from src.infrastructure.exceptions import AuthenticationError
 from src.workflow.services.inquiry_service import InquiryService
 
 router = APIRouter(prefix="/api/inquiries", tags=["Inquiries"])

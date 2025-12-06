@@ -1,11 +1,11 @@
-"""결제 비즈니스 로직 서비스"""
+"""결제 처리 서비스 (외부 서비스)"""
 
 from decimal import Decimal
 
 import paypalrestsdk
 
 from src.config import settings
-from src.utils.exceptions import PaymentProcessingError
+from src.infrastructure.exceptions import PaymentProcessingError
 
 
 class PaymentService:

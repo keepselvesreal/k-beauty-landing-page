@@ -11,7 +11,7 @@ from src.persistence.models import (
     FulfillmentPartner,
     Product,
 )
-from src.utils.exceptions import OrderException
+from src.workflow.exceptions import OrderException
 
 
 class InventoryRepository:

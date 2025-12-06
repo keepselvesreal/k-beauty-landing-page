@@ -1,4 +1,4 @@
-"""이메일 비즈니스 로직 서비스"""
+"""이메일 발송 서비스 (외부 서비스)"""
 
 import smtplib
 from email.mime.text import MIMEText
@@ -194,4 +194,3 @@ class EmailService:
                 error_message=f"Email sending error: {str(e)}",
             )
             return False
-

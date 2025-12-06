@@ -5,7 +5,7 @@ from decimal import Decimal
 from unittest.mock import patch, Mock
 from uuid import uuid4
 
-from src.utils.exceptions import PaymentProcessingError
+from src.workflow.exceptions import PaymentProcessingError
 
 
 class TestInitiatePayment:

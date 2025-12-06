@@ -6,7 +6,7 @@ from uuid import uuid4
 from ..domain.models import User as UserDomain, UserRole
 from ...persistence.repositories.user_repository import UserRepository
 from ...persistence.models import FulfillmentPartner
-from ...utils.exceptions import AuthenticationError
+from ...infrastructure.exceptions import AuthenticationError
 
 
 class AdminService:

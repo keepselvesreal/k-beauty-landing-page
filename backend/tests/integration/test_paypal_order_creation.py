@@ -5,8 +5,8 @@ from decimal import Decimal
 from unittest.mock import patch, Mock
 
 from src.workflow.services.order_service import OrderService
-from src.workflow.services.payment_service import PaymentService
-from src.utils.exceptions import PaymentProcessingError
+from src.infrastructure.external_services import PaymentService
+from src.workflow.exceptions import PaymentProcessingError
 
 
 class TestPayPalOrderCreation:
@@ -71,7 +71,7 @@ class TestPayPalOrderCreation:
         Then: OrderException 예외 발생
         """
         from uuid import uuid4
-        from src.utils.exceptions import OrderException
+        from src.workflow.exceptions import OrderException
 
         db = complete_test_data["db"]
 

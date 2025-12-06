@@ -12,8 +12,8 @@ from src.presentation.schemas.influencer import (
     AffiliateClickRequest,
     AffiliateClickResponse,
 )
-from src.utils.auth import JWTTokenManager
-from src.utils.exceptions import AuthenticationError
+from src.infrastructure.auth import JWTTokenManager
+from src.infrastructure.exceptions import AuthenticationError
 from src.config import settings
 
 router = APIRouter(prefix="/api/influencer", tags=["Influencer"])

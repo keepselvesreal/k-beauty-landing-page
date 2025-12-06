@@ -8,8 +8,8 @@ from typing import List
 from ....persistence.database import get_db
 from ....persistence.models import User, FulfillmentPartner, Affiliate
 from ....workflow.services.authentication_service import AuthenticationService
-from ....utils.auth import JWTTokenManager
-from ....utils.exceptions import AuthenticationError
+from ....infrastructure.auth import JWTTokenManager
+from ....infrastructure.exceptions import AuthenticationError
 from ...schemas.auth import LoginRequest, TokenResponse, ChangePasswordRequest, ChangePasswordResponse
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])

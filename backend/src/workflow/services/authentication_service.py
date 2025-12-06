@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..domain.models import User as UserDomain, UserRole
 from ...persistence.repositories.user_repository import UserRepository
-from ...utils.exceptions import AuthenticationError
+from ...infrastructure.exceptions import AuthenticationError
 
 
 class AuthenticationService:

@@ -14,10 +14,11 @@ from src.presentation.schemas.fulfillment_partner import (
     ShipmentResponse,
 )
 from src.presentation.schemas.admin import CompleteShipmentResponse
-from src.utils.auth import JWTTokenManager
-from src.utils.exceptions import AuthenticationError, OrderException
+from src.infrastructure.auth import JWTTokenManager
+from src.infrastructure.exceptions import AuthenticationError
+from src.workflow.exceptions import OrderException
 from src.workflow.services.shipment_service import ShipmentService
-from src.workflow.services.email_service import EmailService
+from src.infrastructure.external_services import EmailService
 from uuid import UUID
 
 router = APIRouter(prefix="/api/fulfillment-partner", tags=["Fulfillment Partner"])

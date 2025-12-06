@@ -11,8 +11,9 @@ from src.persistence.repositories.inventory_repository import InventoryRepositor
 from src.persistence.repositories.order_repository import OrderRepository
 from src.persistence.repositories.product_repository import ProductRepository
 from src.persistence.repositories.shipping_repository import ShippingRepository
-from src.utils.exceptions import OrderException, PaymentProcessingError
-from src.workflow.services.payment_service import PaymentService
+from src.workflow.exceptions import OrderException
+from src.infrastructure.exceptions import PaymentProcessingError
+from src.infrastructure.external_services import PaymentService
 
 
 class OrderService:

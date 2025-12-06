@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from src.persistence.models import Order
-from src.utils.exceptions import OrderException
+from src.workflow.exceptions import OrderException
 from src.workflow.services.order_service import OrderService
 
 

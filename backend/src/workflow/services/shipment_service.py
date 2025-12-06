@@ -7,7 +7,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.persistence.models import Order, Shipment, ShipmentAllocation
-from src.utils.exceptions import OrderException, AuthenticationError
+from src.workflow.exceptions import OrderException
+from src.infrastructure.exceptions import AuthenticationError
 
 
 class ShipmentService:

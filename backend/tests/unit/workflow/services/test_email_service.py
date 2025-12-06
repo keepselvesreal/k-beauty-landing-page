@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from src.persistence.models import Order
-from src.workflow.services.email_service import EmailService
+from src.infrastructure.external_services import EmailService
 
 
 class TestSendOrderConfirmation:

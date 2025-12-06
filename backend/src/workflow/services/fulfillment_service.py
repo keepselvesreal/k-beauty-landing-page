@@ -16,7 +16,7 @@ from src.persistence.models import (
     ShipmentAllocation,
 )
 from src.persistence.repositories.inventory_repository import InventoryRepository
-from src.utils.exceptions import OrderException
+from src.workflow.exceptions import OrderException
 
 
 class FulfillmentService:

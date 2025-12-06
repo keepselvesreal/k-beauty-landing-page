@@ -15,8 +15,9 @@ from ....persistence.repositories.inventory_repository import InventoryRepositor
 from ....persistence.repositories.order_repository import OrderRepository
 from ....workflow.services.admin_service import AdminService
 from ....workflow.services.shipment_service import ShipmentService
-from ....utils.auth import JWTTokenManager
-from ....utils.exceptions import AuthenticationError, OrderException
+from ....infrastructure.auth import JWTTokenManager
+from ....infrastructure.exceptions import AuthenticationError
+from ....workflow.exceptions import OrderException
 from ...schemas.admin import (
     CreateUserRequest,
     CreateUserResponse,

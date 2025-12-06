@@ -20,7 +20,7 @@ from src.persistence.models import (
     EmailLog,
 )
 from src.persistence.database import Base, engine
-from src.utils.auth import JWTTokenManager
+from src.infrastructure.auth import JWTTokenManager
 from src.main import app
 
 
@@ -185,7 +185,7 @@ class TestShipmentCarrierAndTrackingNumber:
         """
         # GIVEN
         from src.persistence.database import SessionLocal
-        from src.utils.auth import JWTTokenManager
+        from src.infrastructure.auth import JWTTokenManager
 
         db = SessionLocal()
         data = setup_test_data
@@ -315,7 +315,7 @@ class TestShipmentEmailFailure:
         """
         # GIVEN
         from src.persistence.database import SessionLocal
-        from src.workflow.services.email_service import EmailService
+        from src.infrastructure.external_services import EmailService
 
         db = SessionLocal()
         data = setup_test_data

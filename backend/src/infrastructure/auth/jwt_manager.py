@@ -1,10 +1,10 @@
-"""JWT 토큰 관리 - Utils"""
+"""JWT 토큰 관리"""
 
 from datetime import datetime, timedelta
 import jwt
 
-from ..config import settings
-from .exceptions import AuthenticationError
+from src.config import settings
+from src.infrastructure.exceptions import AuthenticationError
 
 
 class JWTTokenManager:

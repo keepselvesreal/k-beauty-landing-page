@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from src.workflow.services.email_service import EmailService
+from src.infrastructure.external_services import EmailService
 from src.workflow.services.affiliate_service import AffiliateService
 from src.workflow.services.order_service import OrderService
 

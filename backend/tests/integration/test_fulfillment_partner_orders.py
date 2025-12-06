@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.persistence.models import User, FulfillmentPartner, PartnerAllocatedInventory
-from src.utils.auth import JWTTokenManager
+from src.infrastructure.auth import JWTTokenManager
 from src.workflow.services.order_service import OrderService
 from src.workflow.services.fulfillment_service import FulfillmentService
 from src.persistence.repositories.order_repository import OrderRepository

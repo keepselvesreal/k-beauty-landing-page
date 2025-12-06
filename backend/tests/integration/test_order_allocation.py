@@ -12,7 +12,7 @@ from src.persistence.models import (
     PartnerAllocatedInventory,
     ShipmentAllocation,
 )
-from src.utils.exceptions import OrderException
+from src.workflow.exceptions import OrderException
 
 
 class TestOrderAllocationIntegration:

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from unittest.mock import patch
 
 from src.persistence.models import PartnerAllocatedInventory
-from src.utils.exceptions import OrderException
+from src.workflow.exceptions import OrderException
 
 
 class TestDecreaseInventoryWithOptimisticLock:
