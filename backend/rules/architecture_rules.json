@@ -1,0 +1,171 @@
+{
+  "version": "1.0",
+  "description": "K-Beauty Backend 아키텍처 규칙",
+  "created_at": "2025-12-06",
+  "layers": {
+    "presentation": {
+      "path": "src/presentation",
+      "description": "HTTP 요청/응답 처리, 스키마, 검증",
+      "type": "closed",
+      "can_import_from": [
+        "workflow",
+        "infrastructure"
+      ],
+      "cannot_import_from": [
+        "persistence"
+      ]
+    },
+    "workflow": {
+      "path": "src/workflow",
+      "description": "순수 비즈니스 로직, 서비스, 도메인 모델",
+      "type": "closed",
+      "can_import_from": [
+        "persistence",
+        "infrastructure",
+        "workflow"
+      ],
+      "cannot_import_from": [
+        "presentation"
+      ]
+    },
+    "persistence": {
+      "path": "src/persistence",
+      "description": "데이터베이스 접근, 리포지토리, ORM 모델",
+      "type": "closed",
+      "can_import_from": [
+        "infrastructure"
+      ],
+      "cannot_import_from": [
+        "presentation",
+        "workflow"
+      ]
+    },
+    "infrastructure": {
+      "path": "src/infrastructure",
+      "description": "외부 서비스, 로깅, 인증, 캐싱 등 기술적 기능",
+      "type": "open",
+      "can_import_from": [
+        "infrastructure"
+      ],
+      "cannot_import_from": []
+    }
+  },
+  "import_rules": {
+    "allowed_patterns": [
+      {
+        "from": "presentation",
+        "to": "workflow",
+        "description": "Presentation이 Workflow의 비즈니스 로직 호출"
+      },
+      {
+        "from": "presentation",
+        "to": "infrastructure",
+        "description": "Presentation이 Infrastructure의 기술 기능 사용"
+      },
+      {
+        "from": "workflow",
+        "to": "persistence",
+        "description": "Workflow이 Persistence의 데이터 접근 로직 호출"
+      },
+      {
+        "from": "workflow",
+        "to": "infrastructure",
+        "description": "Workflow이 Infrastructure의 외부 서비스 호출"
+      },
+      {
+        "from": "persistence",
+        "to": "infrastructure",
+        "description": "Persistence이 Infrastructure의 기술 기능 사용"
+      },
+      {
+        "from": "infrastructure",
+        "to": "infrastructure",
+        "description": "Infrastructure 내부 모듈 간 호출"
+      },
+      {
+        "from": "external",
+        "to": "infrastructure",
+        "description": "외부(main, config 등)에서 Infrastructure 접근"
+      },
+      {
+        "from": "external",
+        "to": "persistence",
+        "description": "외부에서 Persistence의 database 설정 접근"
+      }
+    ],
+    "forbidden_patterns": [
+      {
+        "from": "persistence",
+        "to": "workflow",
+        "description": "Persistence이 Workflow의 비즈니스 로직 호출 금지",
+        "severity": "error"
+      },
+      {
+        "from": "persistence",
+        "to": "presentation",
+        "description": "Persistence이 Presentation 계층 접근 금지",
+        "severity": "error"
+      },
+      {
+        "from": "workflow",
+        "to": "presentation",
+        "description": "Workflow이 Presentation 계층 접근 금지",
+        "severity": "error"
+      },
+      {
+        "from": "infrastructure",
+        "to": "workflow",
+        "description": "Infrastructure이 Workflow의 비즈니스 로직 호출 금지",
+        "severity": "error"
+      },
+      {
+        "from": "infrastructure",
+        "to": "persistence",
+        "description": "Infrastructure이 Persistence의 데이터 접근 로직 호출 금지",
+        "severity": "error"
+      },
+      {
+        "from": "infrastructure",
+        "to": "presentation",
+        "description": "Infrastructure이 Presentation 계층 접근 금지",
+        "severity": "error"
+      }
+    ]
+  },
+  "circular_dependency_check": {
+    "enabled": true,
+    "description": "순환 의존성 감지 및 경고",
+    "depth": 3
+  },
+  "special_cases": {
+    "config": {
+      "path": "src/config.py",
+      "description": "설정 파일은 모든 계층에서 접근 가능",
+      "can_import_from": "all"
+    },
+    "main": {
+      "path": "src/main.py",
+      "description": "애플리케이션 진입점은 모든 계층 접근 가능",
+      "can_import_from": "all"
+    },
+    "tests": {
+      "path": "tests/",
+      "description": "테스트는 모든 계층 접근 가능",
+      "can_import_from": "all"
+    }
+  },
+  "validation_settings": {
+    "check_circular_dependencies": true,
+    "check_layer_isolation": true,
+    "check_import_patterns": true,
+    "strict_mode": false,
+    "ignore_external_imports": [
+      "fastapi",
+      "sqlalchemy",
+      "pydantic",
+      "pytest",
+      "httpx",
+      "paypalrestsdk"
+    ]
+  }
+}
